@@ -1,3 +1,36 @@
+let designerRingImage = null;
+function designerColorRingBackground() {
+  if (designerRingImage) return designerRingImage;
+  const canvas = document.createElement('canvas');
+  canvas.width = canvas.height = 64;
+  const context = canvas.getContext('2d');
+  context.lineWidth = 8;
+  for (let hue = 0; hue < 360; hue++) {
+    context.beginPath();
+    context.strokeStyle = 'hsl(' + hue + ',85%,58%)';
+    context.arc(32, 32, 28, (hue - 90) * Math.PI / 180, (hue - 88.5) * Math.PI / 180);
+    context.stroke();
+  }
+  designerRingImage = 'url("' + canvas.toDataURL('image/png') + '")';
+  return designerRingImage;
+}
+
+function designerPickerIcon(kind) {
+  const paths = kind === 'close'
+    ? '<path d="M18 6 6 18M6 6l12 12"/>'
+    : '<path d="m12 9-8.414 8.414A2 2 0 0 0 3 18.828v1.344a2 2 0 0 1-.586 1.414A2 2 0 0 1 3.828 21h1.344a2 2 0 0 0 1.414-.586L15 12"/><path d="m18 9 .4.4a1 1 0 1 1-3 3l-3.8-3.8a1 1 0 1 1 3-3l.4.4 3.4-3.4a1 1 0 1 1 3 3z"/><path d="m2 22 .414-.414"/>';
+  return '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">' + paths + '</svg>';
+}
+
+function canvasSampleColor(canvas, rect, clientX, clientY) {
+  if (!rect.width || !rect.height || clientX < rect.left || clientX > rect.left + rect.width || clientY < rect.top || clientY > rect.top + rect.height) return null;
+  const x = Math.max(0, Math.min(canvas.width - 1, Math.floor((clientX - rect.left) / rect.width * canvas.width)));
+  const y = Math.max(0, Math.min(canvas.height - 1, Math.floor((clientY - rect.top) / rect.height * canvas.height)));
+  const pixel = canvas.getContext('2d').getImageData(x, y, 1, 1).data;
+  const alpha = pixel[3] / 255;
+  return '#' + Array.from(pixel).slice(0, 3).map(channel => Math.round(channel * alpha + 255 * (1 - alpha)).toString(16).padStart(2, '0')).join('');
+}
+
 function createDesignerColorPicker(root, options) {
   root.innerHTML = '';
   root.classList.add('show', 'designer-picker');
@@ -11,6 +44,27 @@ function createDesignerColorPicker(root, options) {
     if (text) el.textContent = text;
     return el;
   };
+  const header = make('div', 'picker-header');
+  const eyedropper = make('button', 'picker-icon picker-eyedropper');
+  eyedropper.title = '从画布吸色';
+  eyedropper.setAttribute('aria-label', '从画布吸色');
+  eyedropper.innerHTML = designerPickerIcon('pipette');
+  const close = make('button', 'picker-icon picker-close');
+  close.title = '关闭';
+  close.setAttribute('aria-label', '关闭颜色选择器');
+  close.innerHTML = designerPickerIcon('close');
+  close.onclick = options.cancel;
+  eyedropper.onclick = async () => {
+    if (eyedropper.disabled) return;
+    eyedropper.disabled = true;
+    try {
+      const value = await options.pick();
+      if (value && root.contains(header)) { notify(value); render(); }
+    } catch (error) {
+      if (options.error) options.error(error);
+    } finally { eyedropper.disabled = false; }
+  };
+  header.appendChild(eyedropper); header.appendChild(close); root.appendChild(header);
   const tabs = make('div', 'picker-tabs');
   const content = make('div', 'picker-content');
   const footer = make('div', 'picker-footer');
