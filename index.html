@@ -836,16 +836,16 @@
       ratio: "1:1",
       texture: true,
       textureShape: "dot",
-      textureColor: "#ff1687",
+      textureColor: "#ff0000",
       textureColorChosen: false,
       textureOpacity: 100,
       textureSize: 5,
       textureCount: 20,
       canvasTexture: false,
       symbolTexture: false,
-      textTextureConfig: { shape: "dot", color: "#ff1687", colorChosen: false, opacity: 100, size: 0, count: 0 },
-      symbolTextureConfig: { shape: "dot", color: "#ff1687", colorChosen: false, opacity: 100, size: 0, count: 0 },
-      canvasTextureConfig: { shape: "dot", color: "#ff1687", colorChosen: false, opacity: 100, size: 0, count: 0 },
+      textTextureConfig: { shape: "dot", color: "#ff0000", colorChosen: false, opacity: 100, size: 0, count: 0 },
+      symbolTextureConfig: { shape: "dot", color: "#ff0000", colorChosen: false, opacity: 100, size: 0, count: 0 },
+      canvasTextureConfig: { shape: "dot", color: "#ff0000", colorChosen: false, opacity: 100, size: 0, count: 0 },
       showBg: true,
       bgImage: "",
       bgPhoto: { x: 0, y: 0, zoom: 1, ratio: 1 },
@@ -1484,9 +1484,9 @@
         state.texture = true;
         state.symbolTexture = false;
         state.canvasTexture = false;
-        state.textTextureConfig = { shape: "dot", color: "#ff1687", colorChosen: false, opacity: 100, size: 0, count: 0 };
-        state.symbolTextureConfig = { shape: "dot", color: "#ff1687", colorChosen: false, opacity: 100, size: 0, count: 0 };
-        state.canvasTextureConfig = { shape: "dot", color: "#ff1687", colorChosen: false, opacity: 100, size: 0, count: 0 };
+        state.textTextureConfig = { shape: "dot", color: "#ff0000", colorChosen: false, opacity: 100, size: 0, count: 0 };
+        state.symbolTextureConfig = { shape: "dot", color: "#ff0000", colorChosen: false, opacity: 100, size: 0, count: 0 };
+        state.canvasTextureConfig = { shape: "dot", color: "#ff0000", colorChosen: false, opacity: 100, size: 0, count: 0 };
         state.bgImage = "";
         state.bgPhoto = { x: 0, y: 0, zoom: 1, ratio: 1 };
         state.symbolImage = "";
@@ -1906,7 +1906,7 @@
       const color = document.createElement("button");
       setPos(color, { x: x + w - 34, y: y + 95, w: 20, h: 20, id: `texture-color-${target}` });
       color.className = `abs swatch ${cfg.colorChosen ? "active" : ""}`;
-      color.style.setProperty("--bg", cfg.colorChosen ? cfg.color : FIGMA.colors[0].bg);
+      color.style.setProperty("--bg", cfg.color);
       color.onclick = () => openColorPicker(`texture:${target}`);
       frame.appendChild(color);
       renderTextureSlider(x + 91, y + 132, target, "size", 0, 12, w - 106);
