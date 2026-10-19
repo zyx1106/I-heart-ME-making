@@ -325,6 +325,19 @@
       outline: 2px solid #ff1687;
       outline-offset: 3px;
     }
+    .swatch.color-ring { background-color: transparent; background-image: var(--ring); background-size: 100% 100%; border: 0; }
+    .swatch.color-ring::before { content: ""; position: absolute; left: 3px; right: 3px; top: 3px; bottom: 3px; background: #fff; border-radius: 50%; }
+    .swatch.color-ring::after {
+      content: "";
+      position: absolute;
+      left: 4px;
+      right: 4px;
+      top: 4px;
+      bottom: 4px;
+      background: var(--current-color);
+      border: 1px solid #fff;
+      border-radius: 50%;
+    }
 
     .shape-choice {
       width: 24px;
@@ -731,6 +744,14 @@
     }
     .toast.show { opacity: 1; }
     .color-popover.designer-picker { top: auto; bottom: 16px; transform: translateX(-50%); width: calc(100vw - 24px); max-width: 390px; max-height: 85vh; overflow-y: auto; background: #f5f5f7; color: #19191b; padding: 18px; border: 1px solid #fff; }
+    .picker-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; }
+    .picker-icon { width: 44px; height: 44px; display: flex; align-items: center; justify-content: center; background: transparent; color: #171717; border: 0; padding: 9px; }
+    .picker-icon svg { width: 26px; height: 26px; }
+    .picker-icon:disabled { opacity: 0.4; }
+    .canvas-eyedropper { position: fixed; top: 0; left: 0; right: 0; bottom: 0; z-index: 80; touch-action: none; cursor: crosshair; }
+    .eyedropper-image { position: fixed; pointer-events: none; background: #fff; border-radius: 5px; }
+    .eyedropper-sample { position: fixed; display: none; width: 54px; height: 54px; border: 4px solid #fff; border-radius: 50%; box-shadow: 0 2px 12px rgba(0,0,0,0.33); pointer-events: none; }
+    .eyedropper-cancel { position: absolute; right: 16px; top: 16px; top: calc(16px + env(safe-area-inset-top, 0px)); background: #fff; border-radius: 50%; box-shadow: 0 2px 12px rgba(0,0,0,0.2); }
     .picker-tabs { display: flex; background: #e5e5e9; border-radius: 8px; padding: 3px; margin-bottom: 16px; }
     .picker-tabs button { flex: 1; height: 34px; background: transparent; border-radius: 6px; font-size: 14px; }
     .picker-tabs button.active { background: #fff; }
@@ -767,7 +788,7 @@
   <div id="colorPopover" class="color-popover" aria-label="颜色选择器"></div>
   <div id="toast" class="toast"></div>
 
-  <script src="./designer-color-picker.js?v=20261019-4"></script>
+  <script src="./designer-color-picker.js?v=20261019-15"></script>
   <script src="./sticker-catalog.js?v=20261019-2"></script>
   <script src="./minitool-export.js?v=20261019-12"></script>
   <script>
@@ -1860,6 +1881,12 @@
         b.setAttribute("aria-label", c.key === "rainbow" ? "自定义颜色" : c.key);
         b.style.setProperty("--bg", c.bg);
         b.style.setProperty("--bd", c.bd || "0");
+        if (c.key === "rainbow") {
+          b.classList.add("color-ring");
+          b.dataset.colorMode = mode;
+          b.style.setProperty("--ring", designerColorRingBackground());
+          b.style.setProperty("--current-color", colorForMode(mode));
+        }
         const active = (mode === "text" && state.textColor === c.key) || (mode === "symbol" && state.symbolColor === c.key) || (mode === "bg" && state.bgColor === c.key);
         b.classList.toggle("active", active);
         b.setAttribute("aria-pressed", String(active));
@@ -1905,8 +1932,11 @@
       frame.appendChild(star);
       const color = document.createElement("button");
       setPos(color, { x: x + w - 34, y: y + 95, w: 20, h: 20, id: `texture-color-${target}` });
-      color.className = `abs swatch ${cfg.colorChosen ? "active" : ""}`;
-      color.style.setProperty("--bg", cfg.color);
+      color.className = `abs swatch color-ring ${cfg.colorChosen ? "active" : ""}`;
+      color.dataset.colorMode = `texture:${target}`;
+      color.style.setProperty("--ring", designerColorRingBackground());
+      color.style.setProperty("--current-color", cfg.color);
+      color.setAttribute("aria-label", "纹理颜色");
       color.onclick = () => openColorPicker(`texture:${target}`);
       frame.appendChild(color);
       renderTextureSlider(x + 91, y + 132, target, "size", 0, 12, w - 106);
@@ -1995,6 +2025,7 @@
       document.querySelectorAll(".heart-large > .symbol-shape").forEach(applySymbolFill);
       const canvas = document.querySelector(".canvas");
       if (canvas) applyCanvasBackground(canvas);
+      document.querySelectorAll(".color-ring").forEach(ring => ring.style.setProperty("--current-color", colorForMode(ring.dataset.colorMode)));
     }
 
     function applyTextFill(el) {
@@ -2207,6 +2238,70 @@
       }
     }
 
+    async function pickArtworkColor() {
+      const mode = state.colorPicker;
+      const before = pickerBefore;
+      const canvas = await exportNativeDesignCanvas();
+      if (state.colorPicker !== mode || pickerBefore !== before) return null;
+      const popover = document.getElementById("colorPopover");
+      const bounds = frame.querySelector(".canvas").getBoundingClientRect();
+      const overlay = document.createElement("div");
+      overlay.className = "canvas-eyedropper";
+      overlay.setAttribute("role", "dialog");
+      overlay.setAttribute("aria-label", "画布吸色");
+      const image = document.createElement("img");
+      image.className = "eyedropper-image";
+      image.alt = "";
+      image.src = canvas.toDataURL("image/png");
+      Object.assign(image.style, { left: `${bounds.left}px`, top: `${bounds.top}px`, width: `${bounds.width}px`, height: `${bounds.height}px` });
+      const sample = document.createElement("div");
+      sample.className = "eyedropper-sample";
+      const cancel = document.createElement("button");
+      cancel.className = "picker-icon eyedropper-cancel";
+      cancel.title = "取消吸色";
+      cancel.setAttribute("aria-label", "取消吸色");
+      cancel.innerHTML = designerPickerIcon("close");
+      overlay.appendChild(image); overlay.appendChild(sample); overlay.appendChild(cancel);
+      return new Promise(resolve => {
+        let pointer = null;
+        let color = null;
+        const finish = value => {
+          window.removeEventListener("resize", resized);
+          window.removeEventListener("keydown", keydown);
+          if (overlay.parentNode) overlay.parentNode.removeChild(overlay);
+          popover.style.visibility = "";
+          resolve(value);
+        };
+        const resized = () => finish(null);
+        const keydown = event => { if (event.key === "Escape") finish(null); };
+        const pick = event => {
+          const value = canvasSampleColor(canvas, bounds, event.clientX, event.clientY);
+          if (!value) return;
+          color = value;
+          sample.style.display = "block";
+          sample.style.backgroundColor = value;
+          sample.style.left = `${clamp(event.clientX - 27, 4, window.innerWidth - 58)}px`;
+          sample.style.top = `${Math.max(8, event.clientY - 74)}px`;
+        };
+        overlay.onpointerdown = event => {
+          if (event.target.closest("button") || pointer !== null) return;
+          event.preventDefault();
+          if (!canvasSampleColor(canvas, bounds, event.clientX, event.clientY)) return;
+          pointer = event.pointerId;
+          if (overlay.setPointerCapture) overlay.setPointerCapture(pointer);
+          pick(event);
+        };
+        overlay.onpointermove = event => { if (event.pointerId === pointer) { event.preventDefault(); pick(event); } };
+        overlay.onpointerup = event => { if (event.pointerId === pointer) { pick(event); finish(color); } };
+        overlay.onpointercancel = event => { if (event.pointerId === pointer) finish(null); };
+        cancel.onclick = () => finish(null);
+        window.addEventListener("resize", resized);
+        window.addEventListener("keydown", keydown);
+        popover.style.visibility = "hidden";
+        document.body.appendChild(overlay);
+      });
+    }
+
     let pickerBefore = null;
     function renderColorPicker() {
       const popover = document.getElementById("colorPopover");
@@ -2235,7 +2330,9 @@
           refreshTexturePreview();
         },
         cancel: () => finish(true),
-        done: () => finish(false)
+        done: () => finish(false),
+        pick: pickArtworkColor,
+        error: () => toast("吸色失败，请重试")
       });
     }
 
