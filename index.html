@@ -1,0 +1,2482 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <title>Doing Figma Interactive</title>
+  <style>
+    @font-face {
+      font-family: CooperStdBlack;
+      src: url("素材包/英文字体-Corben/CooperBlackStd-3.otf") format("opentype");
+      font-weight: 900;
+    }
+
+    * { box-sizing: border-box; }
+    html, body { margin: 0; height: 100%; overflow: hidden; background: #d9d9de; }
+    body {
+      position: fixed;
+      top: 0; right: 0; bottom: 0; left: 0;
+      display: grid;
+      place-items: start center;
+      font-family: -apple-system, BlinkMacSystemFont, "PingFang SC", "Noto Sans SC", Arial, sans-serif;
+      color: #161618;
+    }
+
+    button, input { font: inherit; }
+    button { border: 0; background: transparent; padding: 0; cursor: pointer; color: inherit; }
+
+    #app {
+      width: min(100vw, 390px);
+      height: 100vh;
+      position: relative;
+      background: #efeff2;
+      overflow: hidden;
+    }
+
+    .frame {
+      width: 390px;
+      height: 844px;
+      position: relative;
+      transform-origin: top left;
+      background: #efeff2;
+      overflow: hidden;
+    }
+
+    .abs { position: absolute; }
+    .preview-pane { position: absolute; top: 0; left: 0; width: 390px; overflow: hidden; }
+    .preview-scene { position: absolute; top: 0; width: 390px; height: 437px; transform-origin: top left; }
+    .editor-pane { position: absolute; left: 0; width: 390px; background: #fff; border-radius: 24px 24px 0 0; overflow: hidden; }
+    .editor-scroll { height: calc(100% - 64px); margin-top: 64px; overflow-y: auto; overflow-x: hidden; -webkit-overflow-scrolling: touch; overscroll-behavior: contain; scrollbar-width: none; }
+    .editor-scroll::-webkit-scrollbar { display: none; }
+    .editor-tabbar { position: absolute; left: 0; top: 0; width: 390px; height: 64px; background: #fff; z-index: 10; }
+    .editor-content {
+      position: relative; width: 390px; box-sizing: content-box;
+      padding-bottom: 56px;
+      padding-bottom: calc(56px + var(--safe-area-inset-bottom, env(safe-area-inset-bottom, 0px)));
+    }
+    .sticker-clip { position: absolute; overflow: hidden; pointer-events: none; }
+    .sticker-coordinates { position: absolute; }
+
+    .panel-shell {
+      left: var(--x);
+      top: var(--y);
+      width: var(--w);
+      height: var(--h);
+      background: #fff;
+      border-radius: 24px 24px 0 0;
+    }
+
+    .brand-i {
+      left: var(--x);
+      top: var(--y);
+      width: var(--w);
+      height: var(--h);
+      font-size: 19px;
+      line-height: 27px;
+      font-weight: 600;
+    }
+
+    .brand-text {
+      left: var(--x);
+      top: var(--y);
+      width: var(--w);
+      height: var(--h);
+      font-size: 18px;
+      line-height: 25px;
+      font-weight: 600;
+      white-space: nowrap;
+    }
+
+    .fig-text {
+      left: var(--x);
+      top: var(--y);
+      width: var(--w);
+      height: var(--h);
+      font-size: var(--fs);
+      line-height: var(--lh);
+      font-weight: var(--fw);
+      color: var(--c);
+      text-align: var(--ta, left);
+      white-space: nowrap;
+    }
+
+    .round {
+      left: var(--x);
+      top: var(--y);
+      width: var(--w);
+      height: var(--h);
+      border-radius: var(--r);
+      background: var(--bg);
+      border: var(--bd, 0);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 6px;
+      text-align: center;
+    }
+
+    .action-icon {
+      width: 16px;
+      height: 16px;
+      display: block;
+      flex: 0 0 auto;
+    }
+
+    .action-label {
+      color: inherit;
+      font-size: 14px;
+      font-weight: 600;
+      line-height: 20px;
+      display: block;
+    }
+
+    .canvas {
+      left: 55px;
+      top: 100px;
+      width: 280px;
+      height: 280px;
+      background: var(--canvas-bg, #fff);
+      border-radius: 5px;
+      overflow: hidden;
+    }
+
+    .mark {
+      position: absolute;
+      box-sizing: content-box;
+      padding: 20px;
+      margin: -20px;
+      font-family: CooperStdBlack, Georgia, serif;
+      font-weight: 900;
+      color: #000;
+      line-height: 1;
+      white-space: nowrap;
+      transform-origin: center center;
+      overflow: visible;
+    }
+
+    .mark-i { left: 100px; top: 137px; width: 93px; height: 140px; font-size: 120px; }
+    .mark-me { left: 98px; top: 232px; width: 305px; height: 141px; font-size: 115px; }
+
+    .heart-large {
+      left: var(--x);
+      top: var(--y);
+      width: var(--w);
+      height: var(--h);
+      color: var(--color, #ff1687);
+      transform-origin: center center;
+    }
+
+    .sticker-art {
+      position: absolute;
+      width: var(--w);
+      height: var(--h);
+      left: var(--x);
+      top: var(--y);
+      transform: translate(-50%, -50%) rotate(var(--rot)) scale(var(--scale));
+      transform-origin: center center;
+      touch-action: none;
+      cursor: grab;
+      z-index: 3;
+      pointer-events: auto;
+    }
+
+    .sticker-art img {
+      width: 100%;
+      height: 100%;
+      object-fit: contain;
+      display: block;
+      pointer-events: none;
+      user-select: none;
+    }
+
+    .sticker-art.active {
+      outline: var(--selection-line, 1px) solid #ff1688;
+      outline-offset: 0;
+    }
+
+    .sticker-art.active::before {
+      content: "";
+      position: absolute;
+      left: var(--selection-dot-offset, -3.5px);
+      top: var(--selection-dot-offset, -3.5px);
+      width: var(--selection-dot, 7px);
+      height: var(--selection-dot, 7px);
+      border-radius: 50%;
+      background: #ff1688;
+      box-shadow: var(--w) 0 0 #ff1688, 0 var(--h) 0 #ff1688, var(--w) var(--h) 0 #ff1688;
+      pointer-events: none;
+    }
+
+    .sticker-handle {
+      position: absolute;
+      width: 44px;
+      height: 44px;
+      border-radius: 50%;
+      background-color: transparent;
+      background-size: 21px 21px;
+      background-position: center;
+      background-repeat: no-repeat;
+      border: 0;
+      padding: 0;
+      right: -22px;
+      z-index: 2;
+      display: grid;
+      place-items: center;
+      color: #ff1687;
+      font-size: 19px;
+      font-weight: 800;
+      line-height: 1;
+    }
+
+    .sticker-handle.rotate {
+      top: -22px;
+      background-image: url("./assets/sticker-controls/rotate.svg");
+    }
+
+    .sticker-handle.scale {
+      bottom: -22px;
+      background-image: url("./assets/sticker-controls/scale.svg");
+    }
+    .sticker-handle.flip { background-image: url("./assets/sticker-controls/flip.svg"); }
+    .sticker-controls { position: absolute; left: 0; top: 0; z-index: 5; pointer-events: none; }
+    .sticker-controls .sticker-handle { right: auto; bottom: auto; pointer-events: auto; transform: translate(-50%, -50%); }
+
+    .sticker-scroll {
+      left: 20px;
+      top: 533px;
+      width: 350px;
+      height: 238px;
+      overflow-y: auto;
+      padding-bottom: 52px;
+      scrollbar-width: none;
+      z-index: 1;
+    }
+
+    .sticker-scroll::-webkit-scrollbar { display: none; }
+
+    .sticker-grid {
+      display: grid;
+      grid-template-columns: repeat(5, 62px);
+      grid-auto-rows: 58px;
+      gap: 8px 10px;
+    }
+
+    .selection {
+      border: 1.5px solid #ff1687;
+      background: transparent;
+      pointer-events: none;
+    }
+
+    .selection::before,
+    .selection::after {
+      content: "";
+      position: absolute;
+      width: 7px;
+      height: 7px;
+      border: 1.5px solid #ff1687;
+      background: #fff;
+      border-radius: 50%;
+    }
+
+    .selection::before { left: -4px; top: -4px; }
+    .selection::after { right: -4px; bottom: -4px; }
+
+    .tab-hit {
+      top: 462px;
+      width: 72px;
+      height: 28px;
+      z-index: 5;
+    }
+
+    .underline {
+      width: 20px;
+      height: 3px;
+      border-radius: 999px;
+      background: #ff1687;
+    }
+
+    .field {
+      left: 20px;
+      top: 520px;
+      width: 350px;
+      height: 38px;
+      border: 0;
+      outline: 0;
+      border-radius: 8px;
+      background: #f6f6f8;
+      padding: 0 12px;
+      color: #161618;
+      font-size: 17px;
+    }
+
+    .swatch {
+      width: 22px;
+      height: 22px;
+      border-radius: 50%;
+      background: var(--bg);
+      border: var(--bd, 0);
+    }
+
+    .swatch.active {
+      outline: 2px solid #ff1687;
+      outline-offset: 3px;
+    }
+
+    .shape-choice {
+      width: 24px;
+      height: 24px;
+      display: grid;
+      place-items: center;
+      color: #8f8f96;
+    }
+
+    .shape-choice.active {
+      color: #ff1687;
+    }
+
+    .range-control {
+      appearance: none;
+      -webkit-appearance: none;
+      background: transparent;
+      height: 24px;
+      cursor: pointer;
+      touch-action: pan-x;
+    }
+
+    .range-control::-webkit-slider-runnable-track {
+      height: 6px;
+      border-radius: 999px;
+      background: #dedee6;
+    }
+
+    .range-control::-webkit-slider-thumb {
+      -webkit-appearance: none;
+      width: 20px;
+      height: 20px;
+      margin-top: -7px;
+      border-radius: 50%;
+      border: 1px solid #dedee6;
+      background: #fff;
+      box-shadow: 0 1px 4px rgba(0,0,0,.12);
+    }
+
+    .range-control::-moz-range-track {
+      height: 6px;
+      border-radius: 999px;
+      background: #dedee6;
+    }
+
+    .range-control::-moz-range-thumb {
+      width: 20px;
+      height: 20px;
+      border-radius: 50%;
+      border: 1px solid #dedee6;
+      background: #fff;
+      box-shadow: 0 1px 4px rgba(0,0,0,.12);
+    }
+
+    .symbol-shape {
+      width: 100%;
+      height: 100%;
+      background-color: currentColor;
+      background-repeat: repeat;
+      background-position: center;
+      -webkit-mask-repeat: no-repeat;
+      mask-repeat: no-repeat;
+      -webkit-mask-position: center;
+      mask-position: center;
+      -webkit-mask-size: contain;
+      mask-size: contain;
+    }
+
+    .sticker-img {
+      width: 100%;
+      height: 100%;
+      min-width: 0;
+      min-height: 0;
+      object-fit: contain;
+      object-position: center;
+      display: block;
+    }
+
+    .sticker-grid > .tile {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      box-sizing: border-box;
+      padding: 8px;
+      border: 1px solid transparent;
+      min-width: 0;
+      min-height: 0;
+    }
+    .sticker-grid > .tile.active { border-color: #ff1687; }
+    .sticker-grid > .sticker-import { flex-direction: column; }
+
+    .color-popover {
+      position: fixed;
+      left: 50%;
+      top: 50%;
+      transform: translate(-50%, -50%);
+      width: min(350px, calc(100vw - 28px));
+      padding: 14px;
+      border-radius: 20px;
+      background: #151517;
+      box-shadow: 0 18px 60px rgba(0,0,0,.30);
+      z-index: 60;
+      display: none;
+    }
+
+    .color-popover.show { display: block; }
+
+    .color-popover label {
+      display: block;
+      margin: 12px 0 6px;
+      color: #d9d9df;
+      font-size: 12px;
+    }
+
+    .color-field {
+      position: relative;
+      width: 100%;
+      height: 126px;
+      border-radius: 10px;
+      border: 1px solid rgba(255,255,255,.35);
+      background:
+        linear-gradient(to bottom, rgba(0,0,0,0), #000),
+        linear-gradient(to right, #fff, var(--picker-color));
+      overflow: hidden;
+      cursor: pointer;
+    }
+
+    .color-target {
+      position: absolute;
+      right: 24px;
+      top: 16px;
+      width: 34px;
+      height: 34px;
+      border: 3px solid #fff;
+      border-radius: 50% 50% 50% 0;
+      transform: rotate(-45deg);
+      box-shadow: 0 1px 8px rgba(0,0,0,.25);
+    }
+
+    .color-cross {
+      position: absolute;
+      right: 43px;
+      top: 67px;
+      width: 14px;
+      height: 14px;
+    }
+
+    .color-cross::before,
+    .color-cross::after {
+      content: "";
+      position: absolute;
+      background: #fff;
+      border-radius: 999px;
+    }
+
+    .color-cross::before { left: 6px; top: 0; width: 2px; height: 14px; }
+    .color-cross::after { left: 0; top: 6px; width: 14px; height: 2px; }
+
+    .native-color {
+      position: absolute;
+      inset: 0;
+      width: 100%;
+      height: 100%;
+      opacity: .001;
+      cursor: pointer;
+    }
+
+    .color-popover input[type="range"] {
+      width: 100%;
+      accent-color: #ff1687;
+    }
+
+    .hue-range {
+      appearance: none;
+      -webkit-appearance: none;
+      height: 16px;
+      border-radius: 999px;
+      background: linear-gradient(90deg, #ff3b30, #ffcc00, #34c759, #00c7ff, #5856d6, #ff1687, #ff3b30);
+      outline: 0;
+    }
+
+    .hue-range::-webkit-slider-thumb {
+      -webkit-appearance: none;
+      width: 28px;
+      height: 28px;
+      border-radius: 50%;
+      border: 3px solid #fff;
+      background: var(--picker-color);
+      box-shadow: 0 2px 8px rgba(0,0,0,.30);
+    }
+
+    .alpha-range {
+      height: 4px;
+    }
+
+    .popover-actions {
+      display: flex;
+      justify-content: flex-end;
+      gap: 10px;
+      margin-top: 14px;
+    }
+
+    .popover-actions button {
+      height: 34px;
+      padding: 0 16px;
+      border-radius: 999px;
+      background: rgba(255,255,255,.14);
+      color: #fff;
+      font-size: 14px;
+    }
+
+    .popover-actions button:last-child {
+      background: #ff1687;
+      color: #fff;
+      font-weight: 700;
+    }
+
+    .modal-action {
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      gap: 18px;
+      position: absolute;
+    }
+    .modal-action .modal-icon { position: absolute; left: 78px; top: 13px; margin: 0 !important; }
+    .modal-action .modal-label { position: absolute; left: 111px; top: 12px; width: 108px; margin: 0 !important; }
+    .modal-action .modal-badge { position: absolute; left: 239px; top: 15px; margin: 0 !important; }
+    .modal-action.edit .modal-label { left: 0; width: 100%; }
+
+    .modal-action.note {
+      gap: 16px;
+    }
+
+    .modal-action .modal-icon {
+      width: 24px;
+      height: 24px;
+      display: block;
+      flex: 0 0 24px;
+    }
+
+    .modal-action .modal-label {
+      text-align: center;
+      font-size: 18px;
+      line-height: 25px;
+      font-weight: 800;
+      white-space: nowrap;
+    }
+
+    .modal-action .modal-badge {
+      height: 20px;
+      min-width: 41px;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      color: #ff1687;
+      background: #fff0f6;
+      border-radius: 999px;
+      padding: 0 9px;
+      font-size: 11px;
+      line-height: 20px;
+      font-weight: 500;
+      white-space: nowrap;
+    }
+
+    .modal-action.edit .modal-label {
+      font-size: 19px;
+      line-height: 26px;
+      color: #64646a;
+    }
+
+    .upload-row {
+      justify-content: flex-start;
+      gap: 9px;
+      padding: 0 12px;
+      text-align: left;
+    }
+
+    .upload-title {
+      font-size: 15px;
+      font-weight: 500;
+      line-height: 20px;
+      flex: 0 0 auto;
+    }
+
+    .upload-hint {
+      min-width: 0;
+      flex: 1 1 auto;
+      color: #96969b;
+      font-size: 11px;
+      line-height: 16px;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
+    .switch {
+      width: 48px;
+      height: 28px;
+      border-radius: 999px;
+      background: #9a9a9f;
+      padding: 3px;
+      display: block;
+    }
+
+    .switch.on { background: #ff1687; }
+    .switch span {
+      display: block;
+      width: 22px;
+      height: 22px;
+      border-radius: 50%;
+      background: #fff;
+      transform: translateX(0);
+    }
+    .switch.on span { transform: translateX(20px); }
+
+    .soft {
+      background: #f6f6f8;
+      border-radius: 8px;
+      overflow: hidden;
+    }
+
+    .tile {
+      background: #f6f6f8;
+      border-radius: 8px;
+      display: grid;
+      place-items: center;
+      color: #96969b;
+      overflow: hidden;
+    }
+
+    .tile.active {
+      background: #fff0f8;
+      border: 1px solid #ff1687;
+    }
+
+    .segmented {
+      left: 20px;
+      top: 493px;
+      width: 350px;
+      height: 32px;
+      border-radius: 18px;
+      background: #ebebef;
+      padding: 2px;
+      display: grid;
+      grid-template-columns: repeat(5, 1fr);
+    }
+
+    .segmented button {
+      border-radius: 16px;
+      font-size: 13px;
+      color: #96969b;
+    }
+    .segmented button.active { background: #fff; color: #161618; }
+
+    .modal {
+      display: none;
+      position: fixed;
+      inset: 0;
+      z-index: 20;
+      background: rgba(0,0,0,.70);
+      backdrop-filter: blur(15px);
+      place-items: end center;
+    }
+    .modal.show { display: grid; }
+
+    .sheet {
+      width: min(100vw - 16px, 374px);
+      height: min(84vh, 710px);
+      border-radius: 35px 35px 0 0;
+      background: #f8f8fa;
+      position: relative;
+      overflow: hidden;
+    }
+
+    .toast {
+      position: fixed;
+      left: 50%;
+      bottom: 18px;
+      transform: translateX(-50%);
+      padding: 9px 14px;
+      border-radius: 999px;
+      background: rgba(0,0,0,.82);
+      color: #fff;
+      font-size: 13px;
+      opacity: 0;
+      pointer-events: none;
+      transition: .18s ease;
+      z-index: 30;
+    }
+    .toast.show { opacity: 1; }
+    .color-popover.designer-picker { top: auto; bottom: 16px; transform: translateX(-50%); width: calc(100vw - 24px); max-width: 390px; max-height: 85vh; overflow-y: auto; background: #f5f5f7; color: #19191b; padding: 18px; border: 1px solid #fff; }
+    .picker-header { display: flex; justify-content: center; align-items: center; position: relative; height: 36px; margin-bottom: 14px; }
+    .picker-close { position: absolute; right: 0; width: 36px; height: 36px; font-size: 28px; background: transparent; }
+    .picker-tabs { display: flex; background: #e5e5e9; border-radius: 8px; padding: 3px; margin-bottom: 16px; }
+    .picker-tabs button { flex: 1; height: 34px; background: transparent; border-radius: 6px; font-size: 14px; }
+    .picker-tabs button.active { background: #fff; }
+    .picker-grid { display: grid; grid-template-columns: repeat(12, 1fr); grid-template-rows: repeat(10, 23px); border-radius: 8px; overflow: hidden; }
+    .picker-cell { min-width: 0; border-radius: 0; }
+    .picker-cell.selected { outline: 2px solid #fff; outline-offset: -3px; }
+    .picker-spectrum { position: relative; height: 230px; border-radius: 8px; overflow: hidden; }
+    .picker-spectrum canvas { display: block; width: 100%; height: 100%; touch-action: none; }
+    .picker-marker { pointer-events: none; position: absolute; width: 22px; height: 22px; border: 3px solid #fff; border-radius: 50%; transform: translate(-50%, -50%); left: 50%; top: 50%; box-shadow: 0 0 2px #444; }
+    .picker-footer { border-top: 1px solid #dedee4; padding-top: 12px; margin-top: 16px; }
+    .picker-sample { width: 44px; height: 44px; border-radius: 6px; float: left; margin-right: 12px; border: 1px solid #dedee4; }
+    .designer-picker label { color: #626269; font-size: 13px; margin: 0 0 8px; }
+    .picker-alpha { width: calc(100% - 56px); height: 24px; accent-color: #88888e; }
+    .picker-footer-actions { display: flex; justify-content: flex-end; clear: both; padding-top: 12px; }
+    .picker-footer-actions button { background: #fff; height: 36px; padding: 0 18px; border-radius: 6px; margin-left: 10px; }
+    .picker-rgb-row { display: flex !important; flex-wrap: wrap; align-items: center; padding: 8px 0; }
+    .picker-rgb-row input[type=range] { flex: 1; width: 160px; height: 36px; margin: 0 12px; }
+    .picker-number, .picker-hex { background: #fff; border: 1px solid #e4e4e8; border-radius: 6px; width: 68px; height: 36px; text-align: center; font-size: 16px; }
+    .picker-hex-row { display: flex !important; align-items: center; justify-content: space-between; padding-top: 18px; }
+    .picker-hex { width: 100px; }
+    .picker-saved { display: flex; flex-wrap: wrap; clear: both; padding-top: 10px; }
+    .picker-add, .picker-saved-color { width: 28px; height: 28px; border-radius: 50%; margin-right: 8px; margin-top: 6px; border: 1px solid #d9d9df; }
+    .picker-add { font-size: 22px; background: #e5e5e9; }
+    .picker-rgb-row input[type=range]::-webkit-slider-runnable-track { background: var(--channel-bg); height: 16px; border-radius: 8px; }
+    .picker-rgb-row input[type=range]::-webkit-slider-thumb { margin-top: -2px; width: 20px; height: 20px; }
+  </style>
+</head>
+<body>
+  <main id="app">
+    <div id="frame" class="frame"></div>
+  </main>
+
+  <div id="modal" class="modal">
+    <div class="sheet" id="sheet"></div>
+  </div>
+  <div id="colorPopover" class="color-popover" aria-label="颜色选择器"></div>
+  <div id="toast" class="toast"></div>
+
+  <script src="./designer-color-picker.js?v=20261014-3"></script>
+  <script src="./sticker-catalog.js?v=20261019-2"></script>
+  <script src="./minitool-export.js?v=20261019-1"></script>
+  <script>
+    const FIGMA = {
+      fileKey: "yoTTC6Cs6jEJHyRaSgIyDq",
+      sourceNode: "167:57",
+      frames: {
+        text: { id: "7663:3755", name: "文字", size: [390, 1010], panelHeight: 463, panelY: 437 },
+        symbol: { id: "7663:3829", name: "符号", size: [390, 844], panelHeight: 407, panelY: 437 },
+        sticker: { id: "7663:3907", name: "贴纸", size: [390, 844], panelHeight: 407, panelY: 437 },
+        canvas: { id: "7663:4150", name: "画布", size: [390, 952], panelHeight: 515, panelY: 437 },
+        modal: { id: "7663:4000", name: "弹窗", size: [390, 844] }
+      },
+      brand: {
+        textI: { id: "7663:3758", x: 40, y: 48, w: 5, h: 27 },
+        heart: { id: "7663:3759", x: 50, y: 51, w: 18, h: 18 },
+        designer: { id: "7663:3760", x: 73, y: 49, w: 76, h: 25 }
+      },
+      canvasRect: { id: "7663:3769", x: 55, y: 100, w: 280, h: 280, r: 5 },
+      wordGroup: {
+        i: { id: "7663:4242", x: 100, y: 137, w: 93, h: 140, fs: 120 },
+        heart: { id: "7663:3771", x: 174, y: 137, w: 106, h: 95.5 },
+        me: { id: "7663:4243", x: 98, y: 232, w: 305, h: 141, fs: 115 }
+      },
+      action: {
+        undo: { id: "7663:3773", x: 18, y: 389, w: 32, h: 32 },
+        redo: { id: "7663:3773b", x: 60, y: 389, w: 32, h: 32 },
+        clear: { id: "7663:3762", x: 237, y: 390, w: 55, h: 32 },
+        export: { id: "7663:3765", x: 299, y: 390, w: 68, h: 32 }
+      },
+      panel: {
+        y: 437, w: 390, r: 24, handle: { x: 181, y: 444, w: 28, h: 4 },
+        tabs: [
+          { key: "text", id: "7663:3782", label: "文字", x: 39, y: 462, w: 30, h: 21 },
+          { key: "symbol", id: "7663:3784", label: "符号", x: 133, y: 462, w: 30, h: 21 },
+          { key: "sticker", id: "7663:3785", label: "贴纸", x: 227, y: 462, w: 30, h: 21 },
+          { key: "canvas", id: "7663:3786", label: "画布", x: 321, y: 462, w: 30, h: 21 }
+        ]
+      },
+      colors: [
+        { key: "rainbow", bg: "conic-gradient(#ff1687,#fff84b,#5bd8b9,#67d8e9,#b586ee,#ff1687)" },
+        { key: "#ff1b12", bg: "#ff1b12" },
+        { key: "#000000", bg: "#000" },
+        { key: "#ffffff", bg: "#fff", bd: "1px solid #e6e6ea" },
+        { key: "#f36aad", bg: "#f36aad" },
+        { key: "#ffeba7", bg: "#ffeba7" },
+        { key: "#c8a4f0", bg: "#c8a4f0" },
+        { key: "#7fdbea", bg: "#7fdbea" },
+        { key: "#5bd4b5", bg: "#5bd4b5" }
+      ]
+    };
+
+    const state = {
+      active: "text",
+      text: "ME",
+      textSpacing: 0,
+      textSize: 100,
+      textColor: "#000000",
+      textOpacity: 100,
+      symbolOpacity: 100,
+      bgOpacity: 100,
+      symbol: "heart",
+      symbolColor: "#ff1b12",
+      bgColor: "#ffffff",
+      bgColorChosen: false,
+      ratio: "1:1",
+      texture: true,
+      textureShape: "dot",
+      textureColor: "#ff1687",
+      textureColorChosen: false,
+      textureOpacity: 100,
+      textureSize: 5,
+      textureCount: 20,
+      canvasTexture: false,
+      symbolTexture: false,
+      textTextureConfig: { shape: "dot", color: "#ff1687", colorChosen: false, opacity: 100, size: 0, count: 0 },
+      symbolTextureConfig: { shape: "dot", color: "#ff1687", colorChosen: false, opacity: 100, size: 0, count: 0 },
+      canvasTextureConfig: { shape: "dot", color: "#ff1687", colorChosen: false, opacity: 100, size: 0, count: 0 },
+      showBg: true,
+      bgImage: "",
+      bgPhoto: { x: 0, y: 0, zoom: 1, ratio: 1 },
+      symbolImage: "",
+      symbolPhoto: { x: 0, y: 0, zoom: 1 },
+      sticker: "star",
+      stickerCategory: "Y2K",
+      activeStickerSrc: "./assets/stickers/y2k/083-S09-粉色豹纹星星.webp",
+      stickers: [],
+      activeStickerId: null,
+      nextStickerId: 1,
+      colorPicker: null,
+      modalOpen: false
+    };
+
+    const history = {
+      past: [],
+      future: []
+    };
+
+    const SYMBOL_MASKS = {
+      heart: `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 33 31"><path fill="black" d="M16.0417 30.4661C13.475 27.2425 0 17.5714 0 8.54509C0 -0.803591 10.5875 -3.06017 16.0417 4.67667C21.4958 -3.06017 32.0833 -0.803591 32.0833 8.54509C32.0833 17.5714 18.6083 27.2425 16.0417 30.4661Z"/></svg>`,
+      star: `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 38 36"><path fill="black" d="M18.5391 0.664062L23.6462 12.2403L36.4141 13.4319L27.051 21.9438L29.6045 34.7117L18.5391 27.9022L7.47359 34.7117L10.0272 21.9438L0.664062 13.4319L13.4319 12.2403L18.5391 0.664062Z"/></svg>`,
+      ban: `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 34 34"><path fill="none" stroke="black" stroke-width="4.375" d="M31.3542 16.7708C31.3542 24.825 24.825 31.3542 16.7708 31.3542C8.71668 31.3542 2.1875 24.825 2.1875 16.7708C2.1875 8.71668 8.71668 2.1875 16.7708 2.1875C24.825 2.1875 31.3542 8.71668 31.3542 16.7708Z"/><path fill="none" stroke="black" stroke-width="4.375" stroke-linecap="round" stroke-linejoin="round" d="M6.5625 6.5625L26.9792 26.9792"/></svg>`,
+      paw: `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 39 41"><path fill="black" d="M31.4593 30.9294C33.1393 33.6443 33.931 35.0859 33.931 36.5891C33.931 39.5585 31.7823 40.9983 28.8876 40.9983C27.6116 40.9983 26.7882 40.9967 24.7064 39.8851C24.7064 39.8851 23.3576 38.6182 20.2014 38.7484C17.0155 38.6193 15.6658 39.901 15.6658 39.901C13.584 41.0118 12.79 41 11.5155 41C8.62098 41 6.47053 39.5618 6.47053 36.591C6.47053 35.0874 7.26482 33.6476 8.94396 30.9312C8.94396 30.9312 12.1183 25.5206 14.8691 22.9751C16.8567 21.1384 19.7547 21.1451 19.7547 21.1451H20.6486V21.1444C20.6486 21.1444 23.6734 21.1367 25.5364 22.9751C28.2022 25.6129 31.4593 30.9302 31.4593 30.9294ZM13.1293 17.527C16.1558 17.527 18.6088 13.6031 18.6088 8.76361C18.6088 3.92385 16.1558 0 13.1293 0C10.103 0 7.64998 3.92385 7.64998 8.76361C7.65002 13.6031 10.103 17.527 13.1293 17.527ZM7.87816 26.014C10.1087 24.9573 10.6174 21.2096 9.01364 17.6437C7.40964 14.0775 4.30139 12.0426 2.07086 13.0986C-0.159666 14.1546 -0.667675 17.9029 0.935633 21.4692C2.53966 25.0353 5.64781 27.0694 7.87816 26.014ZM25.8687 17.527C28.8952 17.527 31.3487 13.6031 31.3487 8.76361C31.3487 3.92385 28.8952 0 25.8687 0C22.8423 0 20.3892 3.92385 20.3892 8.76361C20.3892 13.6031 22.8423 17.527 25.8687 17.527ZM36.928 13.0978C34.6967 12.0409 31.5895 14.0757 29.9854 17.6427C28.3815 21.2096 28.89 24.9573 31.1214 26.014C33.3527 27.0703 36.4601 25.0353 38.0642 21.4692C39.6681 17.9029 39.1593 14.1546 36.928 13.0978Z"/></svg>`
+    };
+
+
+    const frame = document.getElementById("frame");
+    const modal = document.getElementById("modal");
+    const sheet = document.getElementById("sheet");
+    let renderRaf = 0;
+
+    function scheduleRender() {
+      cancelAnimationFrame(renderRaf);
+      renderRaf = requestAnimationFrame(render);
+    }
+
+    function stickerPanelHeight() {
+      return FIGMA.frames.sticker.panelHeight;
+    }
+
+    function frameHeightForState() {
+      if (state.active === "canvas") return state.bgImage ? 1000 : 952;
+      if (state.active === "symbol" && state.symbolTexture) return state.symbolImage ? 1048 : 1000;
+      if (state.active === "symbol" && state.symbolImage) return 892;
+      if (state.active === "sticker") return 844;
+      if (state.active === "text") return 1010;
+      return 844;
+    }
+
+    function setPos(el, node) {
+      el.style.left = `${node.x}px`;
+      el.style.top = `${node.y}px`;
+      el.style.width = `${node.w}px`;
+      el.style.height = `${node.h}px`;
+      if (node.id) el.dataset.nodeId = node.id;
+      return el;
+    }
+
+    function txt(node, text, cls = "fig-text", opts = {}) {
+      const el = document.createElement(opts.tag || "div");
+      setPos(el, node);
+      el.className = `abs ${cls}`;
+      el.textContent = text;
+      el.style.setProperty("--x", `${node.x}px`);
+      el.style.setProperty("--y", `${node.y}px`);
+      el.style.setProperty("--w", `${node.w}px`);
+      el.style.setProperty("--h", `${node.h}px`);
+      el.style.setProperty("--fs", `${opts.fs || 14}px`);
+      el.style.setProperty("--lh", `${opts.lh || node.h}px`);
+      el.style.setProperty("--fw", opts.fw || 400);
+      el.style.setProperty("--c", opts.color || "#96969b");
+      el.style.setProperty("--ta", opts.align || "left");
+      return el;
+    }
+
+    function rect(node, cls, bg, r = 0, bd = "0") {
+      const el = document.createElement("div");
+      setPos(el, node);
+      el.className = `abs ${cls || "round"}`;
+      el.style.setProperty("--x", `${node.x}px`);
+      el.style.setProperty("--y", `${node.y}px`);
+      el.style.setProperty("--w", `${node.w}px`);
+      el.style.setProperty("--h", `${node.h}px`);
+      el.style.setProperty("--bg", bg);
+      el.style.setProperty("--r", `${r}px`);
+      el.style.setProperty("--bd", bd);
+      return el;
+    }
+
+    function heartSvg(color = "#ff1687") {
+      return `<svg viewBox="0 0 100 90" width="100%" height="100%" aria-hidden="true"><path fill="${color}" d="M50 86S6 53 6 25C6 10 16 1 30 1c9 0 16 5 20 12C54 6 61 1 70 1c14 0 24 9 24 24 0 28-44 61-44 61z"/></svg>`;
+    }
+
+    function symbolSvg(type, color = "#ff1687") {
+      const svg = SYMBOL_MASKS[type] || SYMBOL_MASKS.heart;
+      const src = `data:image/svg+xml,${encodeURIComponent(svg)}`;
+      return `<div class="symbol-shape" style="color:${color};-webkit-mask-image:url('${src}');mask-image:url('${src}')"></div>`;
+    }
+
+    function render() {
+      const oldScroll = frame.querySelector(".editor-scroll");
+      const scrollTop = oldScroll && oldScroll.dataset.tab === state.active ? oldScroll.scrollTop : 0;
+      frame.innerHTML = "";
+      const frameHeight = frameHeightForState();
+      frame.style.height = `${frameHeight}px`;
+      frame.style.background = "#efeff2";
+      document.getElementById("app").style.background = "#efeff2";
+      renderChrome();
+      renderArtwork();
+      renderActions();
+      const previewPane = document.createElement("div");
+      previewPane.className = "preview-pane";
+      const scene = document.createElement("div");
+      scene.id = "previewScene";
+      scene.className = "preview-scene";
+      Array.from(frame.children).forEach(child => scene.appendChild(child));
+      previewPane.appendChild(scene);
+      frame.appendChild(previewPane);
+      renderPanel();
+      const editor = document.createElement("section");
+      editor.className = "editor-pane";
+      const scroll = document.createElement("div");
+      scroll.className = "editor-scroll";
+      scroll.dataset.tab = state.active;
+      const content = document.createElement("div");
+      content.className = "editor-content";
+      let contentBottom = 0;
+      const tabbar = document.createElement("div");
+      tabbar.className = "editor-tabbar";
+      Array.from(frame.children).filter(child => child !== previewPane).forEach(child => {
+        const top = parseFloat(getComputedStyle(child).top);
+        if (child.classList.contains("panel-shell")) { child.remove(); return; }
+        const header = Number.isFinite(top) && top < 501;
+        if (!header && Number.isFinite(top)) {
+          contentBottom = Math.max(contentBottom, top - 501 + (parseFloat(getComputedStyle(child).height) || 0));
+        }
+        if (Number.isFinite(top)) { child.style.top = `${top - (header ? 437 : 501)}px`; child.style.setProperty("--y", `${top - (header ? 437 : 501)}px`); }
+        (header ? tabbar : content).appendChild(child);
+      });
+      content.style.height = `${contentBottom}px`;
+      scroll.appendChild(content); editor.appendChild(tabbar); editor.appendChild(scroll); frame.appendChild(editor);
+      if (state.active !== "sticker") {
+        const photoTarget = state.active === "canvas" && state.bgImage ? "bg" : state.symbolImage ? "symbol" : state.bgImage ? "bg" : null;
+        if (photoTarget) bindPhotoGesture(scene, canvasMetrics(), photoTarget);
+      }
+      fit();
+      scroll.scrollTop = scrollTop;
+      renderModal();
+      renderColorPicker();
+    }
+
+    function snapshotState() {
+      const {
+        active,
+        colorPicker,
+        modalOpen,
+        ...rest
+      } = state;
+      return JSON.stringify(rest);
+    }
+
+    function restoreSnapshot(snapshot) {
+      const data = JSON.parse(snapshot);
+      Object.keys(data).forEach(key => { state[key] = data[key]; });
+      state.colorPicker = null;
+      state.modalOpen = false;
+    }
+
+    function commitChange(change) {
+      const before = snapshotState();
+      change();
+      const after = snapshotState();
+      if (before !== after) {
+        history.past.push(before);
+        history.future = [];
+      }
+      render();
+    }
+
+    function undoChange() {
+      if (!history.past.length) return;
+      history.future.push(snapshotState());
+      restoreSnapshot(history.past.pop());
+      render();
+    }
+
+    function redoChange() {
+      if (!history.future.length) return;
+      history.past.push(snapshotState());
+      restoreSnapshot(history.future.pop());
+      render();
+    }
+
+    function renderChrome() {
+      frame.appendChild(txt(FIGMA.brand.textI, "I", "brand-i", { fs: 19, color: "#161618", fw: 600 }));
+      const h = rect(FIGMA.brand.heart, "heart-large", "transparent");
+      h.innerHTML = heartSvg("#ff1687");
+      frame.appendChild(h);
+      frame.appendChild(txt(FIGMA.brand.designer, "Design", "brand-text", { fs: 18, color: "#161618", fw: 600 }));
+    }
+
+    function renderArtwork() {
+      const metrics = canvasMetrics();
+      const layout = artworkLayout(metrics);
+      const canvas = rect({ ...FIGMA.canvasRect, x: metrics.x, y: metrics.y, w: metrics.w, h: metrics.h }, "canvas", state.showBg ? state.bgColor : "transparent", 5);
+      applyCanvasBackground(canvas);
+      frame.appendChild(canvas);
+
+      const i = document.createElement("div");
+      i.className = "mark mark-i";
+      i.dataset.nodeId = FIGMA.wordGroup.i.id;
+      i.textContent = "I";
+      i.style.top = `${layout.i.y}px`;
+      i.style.left = `${layout.i.x}px`;
+      i.style.width = `${layout.i.w}px`;
+      i.style.height = `${layout.i.h}px`;
+      i.style.fontSize = `${layout.i.fs}px`;
+      applyTextFill(i);
+      frame.appendChild(i);
+
+      const symbolNode = { ...layout.symbol, id: FIGMA.wordGroup.heart.id };
+      const heart = rect(symbolNode, "heart-large", "transparent");
+      heart.innerHTML = symbolSvg(state.symbol, state.symbolColor);
+      applySymbolFill(heart.firstElementChild);
+      frame.appendChild(heart);
+
+      if (state.active === "symbol") {
+        const selection = rect({ x: symbolNode.x, y: symbolNode.y, w: symbolNode.w, h: symbolNode.h, id: "7663:4248" }, "abs selection", "transparent");
+        selection.style.pointerEvents = "none";
+        frame.appendChild(selection);
+      }
+
+      const me = document.createElement("div");
+      me.className = "mark mark-me";
+      me.dataset.nodeId = FIGMA.wordGroup.me.id;
+      me.textContent = state.text;
+      applyTextFill(me);
+      me.style.left = `${layout.me.x}px`;
+      me.style.top = `${layout.me.y}px`;
+      me.style.width = `${layout.me.w}px`;
+      me.style.height = `${layout.me.h}px`;
+      me.style.fontSize = `${layout.me.fs}px`;
+      me.style.textAlign = "center";
+      me.style.letterSpacing = `${layout.me.spacing}px`;
+      frame.appendChild(me);
+
+      renderStickers(metrics);
+    }
+
+    function canvasMetrics() {
+      const base = FIGMA.canvasRect;
+      const h = 280;
+      const w = state.ratio === "9:16" ? 157.5 : state.ratio === "3:4" ? 210 : 280;
+      return { x: base.x + (base.w - w) / 2, y: base.y, w, h, scale: w / base.w };
+    }
+
+    function artworkLayout(metrics) {
+      const s = metrics.w / FIGMA.canvasRect.w;
+      const len = Math.max(1, state.text.length);
+      const ratioTop = {
+        "1:1": 0.264,
+        "3:4": 0.299,
+        "9:16": 0.337
+      }[state.ratio];
+      const textSpecByLen = {
+        1: { w: 0.47, y: 0.271, h: 0.206 },
+        2: { w: 0.47, y: 0.271, h: 0.206 },
+        3: { w: 0.675, y: 0.271, h: 0.206 },
+        4: { w: 0.706, y: 0.276, h: 0.166 },
+        5: { w: 0.681, y: 0.305, h: 0.129 },
+        6: { w: 0.811, y: 0.305, h: 0.129 },
+        7: { w: 0.754, y: 0.335, h: 0.104 }
+      };
+      const spec = textSpecByLen[Math.min(7, len)] || textSpecByLen[7];
+      const topY = metrics.y + metrics.h / 2 - (0.5 - 0.264) * metrics.w;
+      let fs = metrics.w * spec.h * 1.28 * state.textSize / 100;
+      let spacing = metrics.w * state.textSpacing / 1000;
+      const measure = document.createElement("canvas").getContext("2d");
+      measure.font = `900 ${fs}px CooperStdBlack, Georgia, serif`;
+      const measured = measure.measureText(state.text);
+      const glyphWidth = Math.max(measured.width, (measured.actualBoundingBoxLeft || 0) + (measured.actualBoundingBoxRight || 0));
+      const safeWidth = metrics.w * 0.86;
+      const meY = Math.max(topY + metrics.w * spec.y, topY + metrics.w * 0.247 + metrics.w * 0.045);
+      const fitScale = Math.min(1, safeWidth / Math.max(1, glyphWidth), metrics.w * (1 - 0.264 - 0.292 - 0.06) / Math.max(1, fs * 1.3));
+      fs *= fitScale;
+      spacing = len > 1 ? Math.min(spacing, Math.max(0, safeWidth - glyphWidth * fitScale) / (len - 1)) : 0;
+      const meW = glyphWidth * fitScale + Math.max(0, len - 1) * spacing + spacing;
+      const meH = fs * 1.3;
+      const topScale = s;
+      return {
+        i: {
+          x: metrics.x + metrics.w * 0.265,
+          y: topY,
+          w: metrics.w * 0.14,
+          h: metrics.w * 0.245,
+          fs: 100 * topScale
+        },
+        symbol: {
+          x: metrics.x + metrics.w * 0.455,
+          y: topY,
+          w: metrics.w * 0.273,
+          h: metrics.w * 0.247
+        },
+        me: {
+          x: metrics.x + (metrics.w - meW + spacing) / 2,
+          y: meY,
+          w: meW,
+          h: meH,
+          fs,
+          spacing
+        }
+      };
+    }
+
+    function applyCanvasBackground(canvas) {
+      canvas.style.opacity = state.bgOpacity / 100;
+      canvas.style.backgroundColor = state.showBg ? state.bgColor : "transparent";
+      const layers = [];
+      const sizes = [];
+      const repeats = [];
+      const positions = [];
+      const texture = state.canvasTexture ? textureLayer("canvas") : null;
+      if (texture) {
+        layers.push(texture.image);
+        sizes.push(texture.size);
+        repeats.push("repeat");
+        positions.push("center");
+      }
+      if (state.showBg && state.bgImage) {
+        layers.push(`url("${state.bgImage}")`);
+        const metrics = canvasMetrics();
+        const pose = state.bgPhoto;
+        sizes.push(`${Math.max(metrics.w, metrics.h * pose.ratio) * pose.zoom}px auto`);
+        repeats.push("no-repeat");
+        positions.push(`calc(50% + ${pose.x * metrics.w / 280}px) calc(50% + ${pose.y * metrics.w / 280}px)`);
+      }
+      canvas.style.backgroundImage = layers.join(", ");
+      canvas.style.backgroundSize = sizes.join(", ");
+      canvas.style.backgroundRepeat = repeats.join(", ");
+      canvas.style.backgroundPosition = positions.join(", ");
+    }
+
+    function renderStickers(metrics) {
+      const clip = rect(metrics, "sticker-clip", "transparent");
+      const coordinates = document.createElement("div");
+      coordinates.className = "sticker-coordinates";
+      coordinates.style.left = `${-metrics.x}px`; coordinates.style.top = `${-metrics.y}px`;
+      clip.appendChild(coordinates);
+      frame.appendChild(clip);
+      state.stickers.forEach(sticker => {
+        normalizeSticker(sticker, metrics);
+        const pos = stickerPosition(sticker, metrics);
+        const el = document.createElement("div");
+        el.className = `sticker-art ${state.active === "sticker" && sticker.id === state.activeStickerId ? "active" : ""}`;
+        el.dataset.stickerId = String(sticker.id);
+        el.style.pointerEvents = state.active === "sticker" ? "auto" : "none";
+        el.style.setProperty("--x", `${pos.x}px`);
+        el.style.setProperty("--y", `${pos.y}px`);
+        el.style.setProperty("--w", `${pos.w}px`);
+        el.style.setProperty("--h", `${pos.h}px`);
+        el.style.setProperty("--scale", sticker.scale);
+        el.style.setProperty("--rot", `${sticker.rotation}deg`);
+        el.innerHTML = `<img src="${sticker.src}" alt="">`;
+        el.onpointerdown = event => startStickerGesture(event, sticker.id, "move", metrics);
+        coordinates.appendChild(el);
+        if (el.classList.contains("active")) {
+          const controls = document.createElement("div");
+          controls.className = "sticker-controls";
+          controls.dataset.stickerControls = String(sticker.id);
+          [["rotate", "↻", "旋转贴纸"], ["scale", "⤢", "缩放贴纸"], ["flip", "", "水平翻转贴纸"]].forEach(([mode, label, title]) => {
+            const handle = document.createElement("button");
+            handle.className = `sticker-handle ${mode}`;
+            handle.title = title;
+            handle.setAttribute("aria-label", title);
+            if (mode === "flip") handle.setAttribute("aria-pressed", String(!!sticker.flipX));
+            handle.onpointerdown = event => {
+              event.stopPropagation();
+              if (mode === "flip") return;
+              startStickerGesture(event, sticker.id, mode, metrics);
+            };
+            if (mode === "flip") handle.onclick = event => {
+              event.stopPropagation();
+              commitChange(() => { sticker.flipX = !sticker.flipX; });
+            };
+            controls.appendChild(handle);
+          });
+          coordinates.appendChild(controls);
+        }
+        updateStickerElement(sticker, metrics);
+      });
+    }
+
+    function stickerHandlePositions(sticker, metrics) {
+      const pos = stickerPosition(sticker, metrics);
+      const angle = sticker.rotation * Math.PI / 180;
+      const corner = sign => ({
+        x: clamp(pos.x + (Math.cos(angle) * pos.w / 2 - Math.sin(angle) * sign * pos.h / 2) * sticker.scale, metrics.x + 22, metrics.x + metrics.w - 22),
+        y: clamp(pos.y + (Math.sin(angle) * pos.w / 2 + Math.cos(angle) * sign * pos.h / 2) * sticker.scale, metrics.y + 22, metrics.y + metrics.h - 22)
+      });
+      const rotate = corner(-1), scale = corner(1);
+      if (Math.hypot(rotate.x - scale.x, rotate.y - scale.y) < 48) {
+        rotate.y = clamp(scale.y - 48, metrics.y + 22, metrics.y + metrics.h - 22);
+        if (Math.hypot(rotate.x - scale.x, rotate.y - scale.y) < 48) {
+          scale.y = clamp(rotate.y + 48, metrics.y + 22, metrics.y + metrics.h - 22);
+        }
+      }
+      const flip = {
+        x: clamp(pos.x + (-Math.cos(angle) * pos.w / 2 - Math.sin(angle) * pos.h / 2) * sticker.scale, metrics.x + 22, metrics.x + metrics.w - 22),
+        y: clamp(pos.y + (-Math.sin(angle) * pos.w / 2 + Math.cos(angle) * pos.h / 2) * sticker.scale, metrics.y + 22, metrics.y + metrics.h - 22)
+      };
+      if ([rotate, scale].some(point => Math.hypot(point.x - flip.x, point.y - flip.y) < 48)) {
+        const candidates = [
+          { x: metrics.x + 22, y: metrics.y + metrics.h - 22 },
+          { x: metrics.x + 22, y: metrics.y + 22 },
+          { x: metrics.x + metrics.w - 22, y: metrics.y + 22 },
+          { x: metrics.x + metrics.w - 22, y: metrics.y + metrics.h - 22 }
+        ];
+        candidates.sort((a, b) => Math.min(...[rotate, scale].map(p => Math.hypot(p.x - b.x, p.y - b.y))) - Math.min(...[rotate, scale].map(p => Math.hypot(p.x - a.x, p.y - a.y))));
+        flip.x = candidates[0].x; flip.y = candidates[0].y;
+      }
+      return { rotate, scale, flip };
+    }
+
+    function normalizeSticker(sticker, metrics) {
+      if (typeof sticker.gx === "number" && typeof sticker.gy === "number") return;
+      const anchor = stickerAnchor(metrics);
+      const x = typeof sticker.rx === "number" ? metrics.x + sticker.rx * metrics.w : sticker.x;
+      const y = typeof sticker.ry === "number" ? metrics.y + sticker.ry * metrics.h : sticker.y;
+      sticker.gx = ((x || anchor.x) - anchor.x) / metrics.w;
+      sticker.gy = ((y || anchor.y) - anchor.y) / metrics.w;
+      sticker.baseW = sticker.w || 58;
+      sticker.baseH = sticker.h || 58;
+    }
+
+    function stickerPosition(sticker, metrics) {
+      const scale = metrics.w / FIGMA.canvasRect.w;
+      const anchor = stickerAnchor(metrics);
+      return {
+        x: anchor.x + sticker.gx * metrics.w,
+        y: anchor.y + sticker.gy * metrics.w,
+        w: (sticker.baseW || sticker.w || 58) * scale,
+        h: (sticker.baseH || sticker.h || 58) * scale
+      };
+    }
+
+    function stickerAnchor(metrics) {
+      const ratioTop = {
+        "1:1": 0.264,
+        "3:4": 0.299,
+        "9:16": 0.337
+      }[state.ratio];
+      return {
+        x: metrics.x + metrics.w / 2,
+        y: metrics.y + metrics.h / 2 - (0.5 - 0.264) * metrics.w
+      };
+    }
+
+    function startStickerGesture(event, id, mode, metrics) {
+      const sticker = state.stickers.find(item => item.id === id);
+      if (!sticker) return;
+      state.activeStickerId = id;
+      event.preventDefault();
+      const rectBox = frame.querySelector(`[data-sticker-id="${id}"]`).getBoundingClientRect();
+      const gesture = mode;
+      const start = {
+        x: event.clientX,
+        y: event.clientY,
+        stickerX: stickerPosition(sticker, metrics).x,
+        stickerY: stickerPosition(sticker, metrics).y,
+        scale: sticker.scale,
+        rotation: sticker.rotation,
+        centerX: rectBox.left + rectBox.width / 2,
+        centerY: rectBox.top + rectBox.height / 2,
+        snapshot: snapshotState()
+      };
+      event.currentTarget.setPointerCapture(event.pointerId);
+      const move = e => {
+        if (gesture === "move") {
+          const scene = document.getElementById("previewScene");
+          const screenScale = scene.getBoundingClientRect().width / 390;
+          const x = start.stickerX + (e.clientX - start.x) / screenScale;
+          const y = start.stickerY + (e.clientY - start.y) / screenScale;
+          const anchor = stickerAnchor(metrics);
+          sticker.gx = (x - anchor.x) / metrics.w;
+          sticker.gy = (y - anchor.y) / metrics.w;
+        } else if (gesture === "scale") {
+          const dist0 = Math.hypot(start.x - start.centerX, start.y - start.centerY) || 1;
+          const dist = Math.hypot(e.clientX - start.centerX, e.clientY - start.centerY);
+          sticker.scale = Math.max(0.02, start.scale * (dist / dist0));
+        } else {
+          const a0 = Math.atan2(start.y - start.centerY, start.x - start.centerX);
+          const a1 = Math.atan2(e.clientY - start.centerY, e.clientX - start.centerX);
+          sticker.rotation = start.rotation + (a1 - a0) * 180 / Math.PI;
+        }
+        updateStickerElement(sticker, metrics);
+      };
+      const up = () => {
+        window.removeEventListener("pointermove", move);
+        window.removeEventListener("pointerup", up);
+        window.removeEventListener("pointercancel", up);
+        const after = snapshotState();
+        if (start.snapshot !== after) {
+          history.past.push(start.snapshot);
+          history.future = [];
+        }
+        render();
+      };
+      window.addEventListener("pointermove", move);
+      window.addEventListener("pointerup", up, { once: true });
+      window.addEventListener("pointercancel", up, { once: true });
+    }
+
+    function updateStickerElement(sticker, metrics = canvasMetrics()) {
+      const el = frame.querySelector(`[data-sticker-id="${sticker.id}"]`);
+      if (!el) return;
+      const pos = stickerPosition(sticker, metrics);
+      el.style.setProperty("--x", `${pos.x}px`);
+      el.style.setProperty("--y", `${pos.y}px`);
+      el.style.setProperty("--w", `${pos.w}px`);
+      el.style.setProperty("--h", `${pos.h}px`);
+      el.style.setProperty("--scale", sticker.scale);
+      el.style.setProperty("--rot", `${sticker.rotation}deg`);
+      el.style.setProperty("--selection-line", `${1 / sticker.scale}px`);
+      el.style.setProperty("--selection-dot", `${7 / sticker.scale}px`);
+      el.style.setProperty("--selection-dot-offset", `${-3.5 / sticker.scale}px`);
+      el.querySelector("img").style.transform = sticker.flipX ? "scaleX(-1)" : "";
+      const controls = frame.querySelector(`[data-sticker-controls="${sticker.id}"]`);
+      if (controls) {
+        const positions = stickerHandlePositions(sticker, metrics);
+        ["rotate", "scale", "flip"].forEach(mode => {
+          const handle = controls.querySelector(`.${mode}`);
+          handle.style.left = `${positions[mode].x}px`;
+          handle.style.top = `${positions[mode].y}px`;
+        });
+      }
+    }
+
+    function clamp(value, min, max) {
+      return Math.min(max, Math.max(min, value));
+    }
+
+    function renderActions() {
+      const canUndo = history.past.length > 0;
+      const canRedo = history.future.length > 0;
+      const undo = rect(FIGMA.action.undo, "round", "#fff", 16);
+      undo.innerHTML = undoIconSvg(false);
+      undo.style.color = canUndo ? "#161618" : "#b6b6bb";
+      undo.onclick = undoChange;
+      frame.appendChild(undo);
+
+      const redo = rect(FIGMA.action.redo, "round", "#fff", 16);
+      redo.innerHTML = undoIconSvg(true);
+      redo.style.color = canRedo ? "#161618" : "#b6b6bb";
+      redo.onclick = redoChange;
+      frame.appendChild(redo);
+
+      const clear = rect(FIGMA.action.clear, "round", "#eaeaee", 16);
+      clear.innerHTML = `<span class="action-label">清空</span>`;
+      clear.style.color = "#161618";
+      clear.onclick = () => commitChange(() => {
+        state.text = "ME";
+        state.textColor = "#000000";
+        state.symbol = "heart";
+        state.symbolColor = "#ff1b12";
+        state.bgColor = "#ffffff";
+        state.bgColorChosen = false;
+        state.ratio = "1:1";
+        state.texture = true;
+        state.symbolTexture = false;
+        state.canvasTexture = false;
+        state.textTextureConfig = { shape: "dot", color: "#ff1687", colorChosen: false, opacity: 100, size: 0, count: 0 };
+        state.symbolTextureConfig = { shape: "dot", color: "#ff1687", colorChosen: false, opacity: 100, size: 0, count: 0 };
+        state.canvasTextureConfig = { shape: "dot", color: "#ff1687", colorChosen: false, opacity: 100, size: 0, count: 0 };
+        state.bgImage = "";
+        state.bgPhoto = { x: 0, y: 0, zoom: 1, ratio: 1 };
+        state.symbolImage = "";
+        state.symbolPhoto = { x: 0, y: 0, zoom: 1, ratio: 1 };
+        state.textSpacing = 0; state.textSize = 100;
+        state.textOpacity = state.symbolOpacity = state.bgOpacity = 100;
+        state.stickers = [];
+        state.activeStickerId = null;
+      });
+      frame.appendChild(clear);
+
+      const exp = rect(FIGMA.action.export, "round", "#141417", 16);
+      exp.innerHTML = `${exportIconSvg()}<span class="action-label">导出</span>`;
+      exp.style.color = "#fff";
+      exp.onclick = () => {
+        state.modalOpen = true;
+        renderModal();
+      };
+      frame.appendChild(exp);
+    }
+
+    function renderPanel() {
+      const panelH = FIGMA.frames[state.active].panelHeight;
+      const realPanelH = state.active === "text" ? panelH + 110 : state.active === "symbol" ? (state.symbolTexture ? 563 : panelH) + (state.symbolImage ? 48 : 0) : state.active === "sticker" ? stickerPanelHeight() : panelH;
+      frame.appendChild(rect({ x: 0, y: 437, w: 390, h: realPanelH }, "panel-shell", "#fff", 24));
+      frame.appendChild(rect(FIGMA.panel.handle, "abs", "#d9d9df", 999));
+      FIGMA.panel.tabs.forEach(tab => {
+        const active = tab.key === state.active;
+        frame.appendChild(txt(tab, tab.label, "fig-text", { fs: 15, lh: "21px", fw: active ? 600 : 400, color: active ? "#161618" : "#96969b", align: "center" }));
+        if (active) frame.appendChild(rect({ x: tab.x + 5, y: 485, w: 20, h: 3 }, "underline", "#ff1687", 999));
+        const hit = document.createElement("button");
+        hit.className = "abs tab-hit";
+        hit.style.left = `${tab.x - 21}px`;
+        hit.dataset.nodeId = tab.id;
+        hit.onclick = () => { state.active = tab.key; render(); };
+        frame.appendChild(hit);
+      });
+      if (state.active === "text") renderTextPanel();
+      if (state.active === "symbol") renderSymbolPanel();
+      if (state.active === "sticker") renderStickerPanel();
+      if (state.active === "canvas") renderCanvasPanel();
+    }
+
+    function renderTextPanel() {
+      frame.appendChild(txt({ x: 32, y: 505, w: 48, h: 17, id: "7663:3787" }, "输入文字", "fig-text", { fs: 12, color: "#96969b" }));
+      const input = document.createElement("input");
+      setPos(input, { x: 32, y: 528, w: 326, h: 40, id: "7663:3788" });
+      input.className = "abs field";
+      input.lang = "en";
+      input.inputMode = "text";
+      input.autocomplete = "off";
+      input.setAttribute("autocapitalize", "off");
+      input.spellcheck = false;
+      input.value = state.text;
+      let composing = false;
+      let compositionBefore = null;
+      input.oncompositionstart = () => { composing = true; compositionBefore = snapshotState(); };
+      const updateInput = (e, committed = false) => {
+        const raw = e.target.value;
+        const explicitCommit = e.inputType === "insertFromComposition" ||
+          (e.isComposing === false && e.inputType === "insertText");
+        if (!committed && !explicitCommit && (composing || e.isComposing)) {
+          if (compositionBefore === null) compositionBefore = snapshotState();
+          composing = true;
+          // Latin pre-edit text is safe to preview without rewriting the IME's input buffer.
+          if (cleanMainText(raw) === raw) {
+            state.text = raw;
+            renderArtworkOnly();
+          }
+          return;
+        }
+        composing = false;
+        const before = compositionBefore || snapshotState();
+        const cleaned = cleanMainText(raw);
+        if (cleaned !== raw) toast(/[\u3400-\u9fff\uf900-\ufaff]/.test(raw) ? "无法输入中文" : "仅支持英文字母和标点符号");
+        state.text = cleaned;
+        if (input.value !== cleaned) input.value = cleaned;
+        if (before !== snapshotState()) {
+          history.past.push(before);
+          history.future = [];
+        }
+        compositionBefore = null;
+        renderArtworkOnly();
+      };
+      input.oninput = updateInput;
+      input.oncompositionend = e => updateInput(e, true);
+      input.onchange = e => updateInput(e, true);
+      input.onblur = e => updateInput(e, true);
+      input.onkeydown = e => { if (e.key === "Enter" && !composing && !e.isComposing) input.blur(); };
+      frame.appendChild(input);
+      renderTypographySlider("间距", "textSpacing", 0, 40, 594);
+      renderTypographySlider("大小", "textSize", 50, 180, 639);
+      frame.appendChild(txt({ x: 32, y: 709, w: 52, h: 18, id: "7663:3802" }, "文字颜色", "fig-text", { fs: 13, color: "#96969b" }));
+      renderSwatches(35, 734, "text", 40);
+      renderTextureCard(32, 777, 326, 204, true, "text");
+    }
+
+    function cleanMainText(value) {
+      return Array.from(value).filter(char => /[A-Za-z\x20-\x2f\x3a-\x40\x5b-\x60\x7b-\x7e，。！？；：、（）【】《》〈〉「」『』‘’“”…—·]/.test(char)).slice(0, 7).join("");
+    }
+
+    function renderTypographySlider(label, key, min, max, y) {
+      frame.appendChild(txt({ x: 32, y: y + 2, w: 52, h: 20 }, label, "fig-text", { fs: 14, color: "#96969b" }));
+      const slider = document.createElement("input");
+      setPos(slider, { x: 91, y, w: 267, h: 24 });
+      slider.className = "abs range-control";
+      slider.type = "range";
+      slider.min = min;
+      slider.max = max;
+      slider.value = state[key];
+      slider.setAttribute("aria-label", `文字${label}`);
+      let before = null;
+      slider.oninput = () => {
+        if (before === null) before = snapshotState();
+        state[key] = Number(slider.value);
+        const layout = artworkLayout(canvasMetrics()).me;
+        const me = frame.querySelector(".mark-me");
+        Object.assign(me.style, { left: `${layout.x}px`, top: `${layout.y}px`, width: `${layout.w}px`, height: `${layout.h}px`, fontSize: `${layout.fs}px`, letterSpacing: `${layout.spacing}px` });
+      };
+      slider.onchange = () => {
+        if (before !== null && before !== snapshotState()) {
+          history.past.push(before);
+          history.future = [];
+        }
+        before = null;
+        scheduleRender();
+      };
+      frame.appendChild(slider);
+    }
+
+    function renderSymbolPanel() {
+      frame.appendChild(txt({ x: 20, y: 519, w: 52, h: 18, id: "7663:3878" }, "符号颜色", "fig-text", { fs: 13, color: "#96969b" }));
+      renderSwatches(23, 547, "symbol");
+      const upload = rect({ x: 20, y: 600, w: 350, h: 44, id: "7663:3890" }, "round upload-row", "#f6f6f8", 8);
+      upload.innerHTML = `<span style="font-size:18px;line-height:1">▧</span><span class="upload-title">${state.symbolImage ? "更换图片" : "上传图片"}</span><span class="upload-hint">图片将填充在符号内，拖动可调整位置</span><span style="color:#96969b;font-size:22px;line-height:1">›</span>`;
+      upload.onclick = () => fileInput.click();
+      frame.appendChild(upload);
+      const fileInput = imageInput("symbol", "symbol-upload");
+      frame.appendChild(fileInput);
+      if (state.symbolImage) {
+        upload.style.width = "220px";
+        upload.querySelector(".upload-hint").style.display = "none";
+        renderClearPhotoButton("symbol", 252, 600, 118);
+      }
+      if (state.symbolImage) {
+        frame.appendChild(txt({ x: 20, y: 660, w: 65, h: 20 }, "照片缩放", "fig-text", { fs: 13, color: "#96969b" }));
+        const zoom = document.createElement("input");
+        setPos(zoom, { x: 100, y: 655, w: 265, h: 24 });
+        zoom.className = "abs range-control";
+        zoom.type = "range"; zoom.min = 10; zoom.max = 500; zoom.value = state.symbolPhoto.zoom * 100;
+        zoom.setAttribute("aria-label", "照片缩放");
+        let before = null;
+        zoom.oninput = () => { if (before === null) before = snapshotState(); state.symbolPhoto.zoom = Number(zoom.value) / 100; refreshTexturePreview(); };
+        zoom.onchange = () => { if (before && before !== snapshotState()) { history.past.push(before); history.future = []; } before = null; };
+        frame.appendChild(zoom);
+      }
+      renderTextureCard(20, state.symbolImage ? 699 : 651, 350, 204, true, "symbol");
+      const symbolBaseY = (state.symbolTexture ? 875 : 723) + (state.symbolImage ? 48 : 0);
+      frame.appendChild(txt({ x: 20, y: symbolBaseY, w: 56, h: 20, id: "7663:3851" }, "更换符号", "fig-text", { fs: 14, color: "#161618" }));
+      [["heart",20],["star",109],["ban",198],["paw",287]].forEach(([key, x]) => {
+        const tile = rect({ x, y: symbolBaseY + 27, w: 83, h: 70, id: `symbol-${key}` }, "tile" + (state.symbol === key ? " active" : ""), "transparent", 8);
+        tile.innerHTML = `<div style="width:38px;height:38px">${symbolSvg(key, "#ff1b12")}</div>`;
+        tile.onclick = () => commitChange(() => { state.symbol = key; });
+        frame.appendChild(tile);
+      });
+    }
+
+    function renderStickerPanel() {
+      const seg = document.createElement("div");
+      seg.className = "abs segmented";
+      seg.dataset.nodeId = "7663:3993";
+      STICKER_CATEGORIES.forEach(label => {
+        const b = document.createElement("button");
+        b.textContent = label;
+        if (label === state.stickerCategory) b.className = "active";
+        b.onclick = () => {
+          state.stickerCategory = label;
+          render();
+        };
+        seg.appendChild(b);
+      });
+      frame.appendChild(seg);
+      const assets = STICKER_ASSETS[state.stickerCategory] || STICKER_ASSETS["推荐"];
+      const cells = [{ import: true }, ...assets];
+      const scroll = document.createElement("div");
+      scroll.className = "abs sticker-scroll";
+      const grid = document.createElement("div");
+      grid.className = "sticker-grid";
+      for (let i = 0; i < cells.length; i++) {
+        const cell = cells[i];
+        const tile = document.createElement("button");
+        tile.className = "tile" + (cell && cell === state.activeStickerSrc ? " active" : "");
+        tile.dataset.nodeId = `sticker-cell-${i}`;
+        tile.style.width = "62px";
+        tile.style.height = "58px";
+        if (cell?.import) {
+          tile.classList.add("sticker-import");
+          tile.setAttribute("aria-label", "导入贴纸");
+          tile.innerHTML = `<div style="font-size:28px;color:#7c7c7c">+</div><small style="font-size:8px;color:#96969b;margin-top:-12px">导入</small>`;
+          tile.onclick = () => stickerInput.click();
+        } else if (cell) {
+          tile.setAttribute("aria-label", cell.split("/").pop().replace(/\.(png|webp)$/, ""));
+          tile.innerHTML = `<img class="sticker-img" src="${cell}" alt="">`;
+          tile.onclick = () => {
+            commitChange(() => {
+              state.activeStickerSrc = cell;
+              addSticker(cell);
+            });
+          };
+        }
+        grid.appendChild(tile);
+      }
+      scroll.appendChild(grid);
+      frame.appendChild(scroll);
+      const stickerInput = imageInput("sticker", "sticker-upload");
+      frame.appendChild(stickerInput);
+      const del = rect({ x: 20, y: 783, w: 350, h: 36, id: "7663:3989" }, "round", "#ededf2", 18);
+      del.style.zIndex = "8";
+      del.innerHTML = `<span>⌫</span><span style="font-size:14px">删除贴纸</span>`;
+      del.onclick = () => {
+        if (state.activeStickerId) {
+          commitChange(() => {
+            state.stickers = state.stickers.filter(item => item.id !== state.activeStickerId);
+            state.activeStickerId = state.stickers.length ? state.stickers[state.stickers.length - 1].id : null;
+          });
+          return;
+        }
+        toast("先选中一张贴纸");
+      };
+      frame.appendChild(del);
+    }
+
+    function addSticker(src) {
+      const index = state.stickers.length % 6;
+      const metrics = canvasMetrics();
+      const rx = clamp(0.82 - index * 0.08, 0.18, 0.86);
+      const ry = clamp(0.18 + index * 0.06, 0.14, 0.84);
+      const anchor = stickerAnchor(metrics);
+      const stickerX = metrics.x + rx * metrics.w;
+      const stickerY = metrics.y + ry * metrics.h;
+      const sticker = {
+        id: state.nextStickerId++,
+        src,
+        gx: (stickerX - anchor.x) / metrics.w,
+        gy: (stickerY - anchor.y) / metrics.w,
+        baseW: 58,
+        baseH: 58,
+        scale: 1,
+        rotation: 0,
+        flipX: false
+      };
+      state.stickers.push(sticker);
+      state.activeStickerId = sticker.id;
+    }
+
+    function imageInput(target, id) {
+      const input = document.createElement("input");
+      input.type = "file";
+      input.accept = "image/*";
+      input.dataset.uploadInput = id;
+      input.style.display = "none";
+      input.onchange = event => handleImageUpload(target, event.target.files && event.target.files[0]);
+      return input;
+    }
+
+    function handleImageUpload(target, file) {
+      if (!file) return;
+      const before = snapshotState();
+      const reader = new FileReader();
+      reader.onload = () => {
+        const src = String(reader.result || "");
+        if (!src) return;
+        if (target === "bg") {
+          state.bgImage = src;
+          state.showBg = true;
+          state.bgPhoto = { x: 0, y: 0, zoom: 1, ratio: 1 };
+          const image = new Image();
+          image.onload = () => { state.bgPhoto.ratio = image.naturalWidth / image.naturalHeight; refreshTexturePreview(); };
+          image.src = src;
+        }
+        if (target === "symbol") {
+          state.symbolImage = src;
+          state.symbolPhoto = { x: 0, y: 0, zoom: 1 };
+          const image = new Image();
+          image.onload = () => { state.symbolPhoto.ratio = image.naturalWidth / image.naturalHeight; refreshTexturePreview(); };
+          image.src = src;
+        }
+        if (target === "sticker") {
+          state.activeStickerSrc = src;
+          addSticker(src);
+        }
+        if (before !== snapshotState()) {
+          history.past.push(before);
+          history.future = [];
+        }
+        render();
+      };
+      reader.readAsDataURL(file);
+    }
+
+    function renderCanvasPanel() {
+      const textureExpanded = state.canvasTexture;
+      frame.appendChild(txt({ x: 20, y: 522, w: 52, h: 18, id: "7663:4167" }, "背景颜色", "fig-text", { fs: 13, color: "#96969b" }));
+      renderSwatches(102, 521, "bg", 30);
+      frame.appendChild(txt({ x: 20, y: 574, w: 52, h: 18, id: "7663:4178" }, "背景图片", "fig-text", { fs: 13, color: "#96969b" }));
+      const upload = rect({ x: 92, y: 566, w: 270, h: 44, id: "7663:4199" }, "round", "#f6f6f8", 8);
+      upload.innerHTML = `<span style="font-size:20px">▧</span><span style="font-size:15px">${state.bgImage ? "更换图片" : "上传图片"}</span>`;
+      upload.onclick = () => fileInput.click();
+      frame.appendChild(upload);
+      const fileInput = imageInput("bg", "bg-upload");
+      frame.appendChild(fileInput);
+      if (state.bgImage) {
+        upload.style.width = "160px";
+        renderClearPhotoButton("bg", 264, 566, 98);
+        renderPhotoZoom("bg", 620);
+      }
+      const photoOffset = state.bgImage ? 48 : 0;
+      renderTextureCard(12, 626 + photoOffset, 350, 204, true, "canvas");
+      const lowerY = (textureExpanded ? 867 : 694) + photoOffset;
+      frame.appendChild(txt({ x: 20, y: lowerY, w: 52, h: 18, id: "7663:4180" }, "画布比例", "fig-text", { fs: 13, color: "#96969b" }));
+      const ratio = rect({ x: 110, y: lowerY - 9, w: 260, h: 32, id: "7663:4181" }, "round", "#ececf1", 18);
+      ratio.style.padding = "3px";
+      ratio.style.gap = "0";
+      ["1:1", "3:4", "9:16"].forEach((r, i) => {
+        const b = document.createElement("button");
+        b.textContent = r;
+        b.style.flex = "1 1 0";
+        b.style.minWidth = "0";
+        b.style.height = "26px";
+        b.style.margin = "0";
+        b.style.borderRadius = "16px";
+        b.style.fontSize = "13px";
+        b.style.color = state.ratio === r ? "#161618" : "#96969b";
+        b.style.background = state.ratio === r ? "#fff" : "transparent";
+        b.onclick = () => commitChange(() => { state.ratio = r; });
+        ratio.appendChild(b);
+      });
+      frame.appendChild(ratio);
+      frame.appendChild(txt({ x: 20, y: lowerY + 43, w: 56, h: 20, id: "7663:4187" }, "显示背景", "fig-text", { fs: 14, color: "#96969b" }));
+      const sw = switchEl(state.showBg);
+      setPos(sw, { x: 322, y: lowerY + 37, w: 48, h: 28, id: "7663:4188" });
+      sw.onclick = () => commitChange(() => { state.showBg = !state.showBg; });
+      frame.appendChild(sw);
+    }
+
+    function renderSwatches(x0, y, mode, gap = 40) {
+      FIGMA.colors.forEach((c, i) => {
+        const b = document.createElement("button");
+        setPos(b, { x: x0 + i * gap, y, w: 22, h: 22, id: `${mode}-color-${i}` });
+        b.className = "abs swatch";
+        b.style.setProperty("--bg", c.bg);
+        b.style.setProperty("--bd", c.bd || "0");
+        const active = (mode === "text" && state.textColor === c.key) || (mode === "symbol" && state.symbolColor === c.key) || (mode === "bg" && state.bgColor === c.key);
+        b.classList.toggle("active", active);
+        b.onclick = () => {
+          if (c.key === "rainbow") {
+            openColorPicker(mode);
+            return;
+          }
+          const value = c.key;
+          commitChange(() => {
+            if (mode === "text") state.textColor = value;
+            if (mode === "symbol") state.symbolColor = value;
+            if (mode === "bg") {
+              state.bgColor = value;
+              state.bgColorChosen = true;
+            }
+          });
+        };
+        frame.appendChild(b);
+      });
+    }
+
+    function renderTextureCard(x, y, w, h, on, target = "text") {
+      const enabledKey = target === "symbol" ? "symbolTexture" : target === "canvas" ? "canvasTexture" : "texture";
+      const cfg = textureConfig(target);
+      const expanded = state[enabledKey] && on;
+      frame.appendChild(rect({ x, y, w, h: expanded ? h : 48, id: "texture-card" }, "abs soft", "#f6f6f8", 8));
+      frame.appendChild(txt({ x: x + 14, y: y + 13, w: 56, h: 20 }, "纹理填充", "fig-text", { fs: 14, color: "#96969b" }));
+      const sw = switchEl(expanded);
+      setPos(sw, { x: x + w - 62, y: y + 8, w: 48, h: 28 });
+      sw.onclick = () => commitChange(() => { state[enabledKey] = !state[enabledKey]; });
+      frame.appendChild(sw);
+      if (!expanded) return;
+      [["形状", 60], ["纹理颜色", 96], ["大小", 135], ["数量", 174]].forEach(([label, dy]) => {
+        frame.appendChild(txt({ x: x + 14, y: y + dy, w: 56, h: 20 }, label, "fig-text", { fs: 14, color: "#96969b" }));
+      });
+      const divider = rect({ x: x + 14, y: y + 48, w: w - 28, h: 1 }, "abs", "#dedee4", 0);
+      divider.style.backgroundColor = "#dedee4";
+      frame.appendChild(divider);
+      const dot = shapeButton("dot", x + w - 82, y + 58, target);
+      const star = shapeButton("star", x + w - 38, y + 58, target);
+      frame.appendChild(dot);
+      frame.appendChild(star);
+      const color = document.createElement("button");
+      setPos(color, { x: x + w - 34, y: y + 95, w: 20, h: 20, id: `texture-color-${target}` });
+      color.className = `abs swatch ${cfg.colorChosen ? "active" : ""}`;
+      color.style.setProperty("--bg", cfg.colorChosen ? cfg.color : FIGMA.colors[0].bg);
+      color.onclick = () => openColorPicker(`texture:${target}`);
+      frame.appendChild(color);
+      renderTextureSlider(x + 91, y + 132, target, "size", 0, 12, w - 106);
+      renderTextureSlider(x + 91, y + 171, target, "count", 0, 48, w - 106);
+    }
+
+    function renderSwitchRow(x, y, on) {
+      frame.appendChild(rect({ x, y, w: 350, h: 48, id: "7663:3899" }, "abs soft", "#f6f6f8", 8));
+      frame.appendChild(txt({ x: x + 14, y: y + 13, w: 56, h: 20 }, "纹理填充", "fig-text", { fs: 14, color: "#96969b" }));
+      const sw = switchEl(on);
+      setPos(sw, { x: x + 288, y: y + 8, w: 48, h: 28 });
+      frame.appendChild(sw);
+    }
+
+    function switchEl(on) {
+      const sw = document.createElement("button");
+      sw.className = `abs switch ${on ? "on" : ""}`;
+      sw.innerHTML = "<span></span>";
+      return sw;
+    }
+
+    function shapeButton(kind, x, y, target = "text") {
+      const cfg = textureConfig(target);
+      const btn = document.createElement("button");
+      setPos(btn, { x, y, w: 26, h: 26, id: `texture-shape-${target}-${kind}` });
+      btn.className = `abs shape-choice ${cfg.shape === kind ? "active" : ""}`;
+      btn.innerHTML = kind === "dot"
+        ? `<svg viewBox="0 0 24 24" width="24" height="24"><circle cx="12" cy="12" r="8" fill="none" stroke="currentColor" stroke-width="3"/><circle cx="12" cy="12" r="3" fill="currentColor"/></svg>`
+        : `<svg viewBox="0 0 24 24" width="24" height="24"><path d="M12 2.5 14.8 8.5 21.4 9.3 16.5 13.8 17.8 20.3 12 17 6.2 20.3 7.5 13.8 2.6 9.3 9.2 8.5z" fill="currentColor"/></svg>`;
+      btn.onclick = () => {
+        commitChange(() => { cfg.shape = kind; });
+      };
+      return btn;
+    }
+
+    function textureConfig(target = "text") {
+      if (target === "symbol") return state.symbolTextureConfig;
+      if (target === "canvas") return state.canvasTextureConfig;
+      return state.textTextureConfig;
+    }
+
+    function renderTextureSlider(x, y, target, key, min, max, width = 244) {
+      const cfg = textureConfig(target);
+      const slider = document.createElement("input");
+      setPos(slider, { x, y, w: width, h: 24, id: `texture-${target}-${key}` });
+      slider.className = "abs range-control";
+      slider.type = "range";
+      slider.min = min;
+      slider.max = max;
+      slider.value = cfg[key];
+      let before = null;
+      slider.oninput = e => {
+        if (before === null) before = snapshotState();
+        cfg[key] = Number(e.target.value);
+        refreshTexturePreview();
+      };
+      slider.onchange = () => {
+        if (before !== null && before !== snapshotState()) {
+          history.past.push(before);
+          history.future = [];
+        }
+        before = null;
+        scheduleRender();
+      };
+      frame.appendChild(slider);
+    }
+
+    function renderSlider(x, y, key, min, max) {
+      const slider = document.createElement("input");
+      setPos(slider, { x, y, w: 244, h: 24, id: key });
+      slider.className = "abs range-control";
+      slider.type = "range";
+      slider.min = min;
+      slider.max = max;
+      slider.value = state[key];
+      slider.oninput = e => {
+        state[key] = Number(e.target.value);
+        refreshTexturePreview();
+      };
+      slider.onchange = () => scheduleRender();
+      frame.appendChild(slider);
+    }
+
+    function refreshTexturePreview() {
+      document.querySelectorAll(".mark").forEach(applyTextFill);
+      document.querySelectorAll(".heart-large > .symbol-shape").forEach(applySymbolFill);
+      const canvas = document.querySelector(".canvas");
+      if (canvas) applyCanvasBackground(canvas);
+    }
+
+    function applyTextFill(el) {
+      el.style.opacity = state.textOpacity / 100;
+      const texture = state.texture ? textureLayer("text") : null;
+      if (!texture) {
+        el.style.color = state.textColor;
+        el.style.backgroundImage = "";
+        el.style.backgroundColor = "";
+        el.style.webkitBackgroundClip = "";
+        el.style.backgroundClip = "";
+        return;
+      }
+      el.style.color = "transparent";
+      el.style.webkitBackgroundClip = "text";
+      el.style.backgroundClip = "text";
+      el.style.backgroundColor = state.textColor;
+      el.style.backgroundImage = `${texture.image}, linear-gradient(${state.textColor}, ${state.textColor})`;
+      el.style.backgroundSize = `${texture.size}, auto`;
+      el.style.backgroundRepeat = "repeat";
+    }
+
+    function applySymbolFill(el) {
+      if (!el) return;
+      el.style.opacity = state.symbolOpacity / 100;
+      const texture = state.symbolTexture ? textureLayer("symbol") : null;
+      const layers = [];
+      const sizes = [];
+      const repeats = [];
+      const positions = [];
+      if (texture) {
+        layers.push(texture.image);
+        sizes.push(texture.size);
+        repeats.push("repeat");
+        positions.push("center");
+      }
+      if (state.symbolImage) {
+        layers.push(`url("${state.symbolImage}")`);
+        const box = artworkLayout(canvasMetrics()).symbol;
+        const baseWidth = Math.max(box.w, box.h * (state.symbolPhoto.ratio || 1));
+        sizes.push(`${baseWidth * state.symbolPhoto.zoom}px auto`);
+        repeats.push("no-repeat");
+        positions.push(`calc(50% + ${state.symbolPhoto.x * canvasMetrics().w / 280}px) calc(50% + ${state.symbolPhoto.y * canvasMetrics().w / 280}px)`);
+      }
+      if (!layers.length) {
+        el.style.backgroundColor = state.symbolColor;
+        el.style.backgroundImage = "";
+        return;
+      }
+      el.style.backgroundColor = state.symbolColor;
+      el.style.backgroundImage = layers.join(", ");
+      el.style.backgroundSize = sizes.join(", ");
+      el.style.backgroundRepeat = repeats.join(", ");
+      el.style.backgroundPosition = positions.join(", ");
+    }
+
+    function textureTileSize(target = "text") {
+      return textureLayer(target)?.size || "auto";
+    }
+
+    function renderClearPhotoButton(target, x, y, w) {
+      const clear = rect({ x, y, w, h: 44 }, "round", "#f6f6f8", 8);
+      clear.textContent = "清除图片";
+      clear.style.fontSize = "14px";
+      clear.onclick = () => commitChange(() => {
+        state[target === "bg" ? "bgImage" : "symbolImage"] = "";
+        state[target === "bg" ? "bgPhoto" : "symbolPhoto"] = { x: 0, y: 0, zoom: 1, ratio: 1 };
+      });
+      frame.appendChild(clear);
+    }
+
+    function renderPhotoZoom(target, y) {
+      const pose = state[target === "bg" ? "bgPhoto" : "symbolPhoto"];
+      frame.appendChild(txt({ x: 20, y: y + 5, w: 65, h: 20 }, "照片缩放", "fig-text", { fs: 13, color: "#96969b" }));
+      const zoom = document.createElement("input");
+      setPos(zoom, { x: 100, y, w: 265, h: 24 });
+      zoom.className = "abs range-control";
+      zoom.type = "range"; zoom.min = 10; zoom.max = 500; zoom.value = pose.zoom * 100;
+      zoom.setAttribute("aria-label", "背景照片缩放");
+      let before = null;
+      zoom.oninput = () => { if (before === null) before = snapshotState(); pose.zoom = Number(zoom.value) / 100; refreshTexturePreview(); };
+      zoom.onchange = () => { if (before && before !== snapshotState()) { history.past.push(before); history.future = []; } before = null; };
+      frame.appendChild(zoom);
+    }
+
+    function bindPhotoGesture(heart, metrics, target) {
+      heart.style.touchAction = "none";
+      const pose = state[target === "bg" ? "bgPhoto" : "symbolPhoto"];
+      const pointers = new Map();
+      let before = null, start = null;
+      const distance = () => {
+        const points = Array.from(pointers.values());
+        return points.length > 1 ? Math.hypot(points[0].x - points[1].x, points[0].y - points[1].y) : 0;
+      };
+      const reset = () => {
+        const point = Array.from(pointers.values())[0];
+        start = { x: point.x, y: point.y, px: pose.x, py: pose.y, zoom: pose.zoom, distance: distance() };
+      };
+      heart.onpointerdown = event => {
+        const rect = heart.getBoundingClientRect();
+        const scale = rect.width / 390;
+        const x = (event.clientX - rect.left) / scale, y = (event.clientY - rect.top) / scale;
+        if (x < metrics.x || x > metrics.x + metrics.w || y < metrics.y || y > metrics.y + metrics.h) return;
+        event.preventDefault();
+        if (before === null) before = snapshotState();
+        pointers.set(event.pointerId, { x: event.clientX, y: event.clientY });
+        heart.setPointerCapture(event.pointerId);
+        reset();
+      };
+      heart.onpointermove = event => {
+        if (!pointers.has(event.pointerId)) return;
+        pointers.set(event.pointerId, { x: event.clientX, y: event.clientY });
+        if (pointers.size > 1) pose.zoom = Math.max(0.1, start.zoom * distance() / Math.max(1, start.distance));
+        else {
+          const scale = heart.getBoundingClientRect().width / 390 * metrics.w / 280;
+          pose.x = start.px + (event.clientX - start.x) / scale;
+          pose.y = start.py + (event.clientY - start.y) / scale;
+        }
+        refreshTexturePreview();
+      };
+      const end = event => {
+        if (!pointers.has(event.pointerId)) return;
+        pointers.delete(event.pointerId);
+        if (pointers.size) reset();
+        else {
+          if (before && before !== snapshotState()) { history.past.push(before); history.future = []; }
+          before = null;
+          render();
+        }
+      };
+      heart.onpointerup = heart.onpointercancel = end;
+      heart.onwheel = event => {
+        const canvas = frame.querySelector(".canvas").getBoundingClientRect();
+        if (event.clientX < canvas.left || event.clientX > canvas.right || event.clientY < canvas.top || event.clientY > canvas.bottom) return;
+        event.preventDefault();
+        const previous = snapshotState();
+        pose.zoom = Math.max(0.1, pose.zoom * Math.exp(-event.deltaY * 0.005));
+        if (previous !== snapshotState()) { history.past.push(previous); history.future = []; }
+        refreshTexturePreview();
+      };
+    }
+
+    function textureColor(target = "text") {
+      const cfg = textureConfig(target);
+      const hex = cfg.color.replace("#", "");
+      const r = parseInt(hex.slice(0, 2), 16);
+      const g = parseInt(hex.slice(2, 4), 16);
+      const b = parseInt(hex.slice(4, 6), 16);
+      return `rgba(${r}, ${g}, ${b}, ${cfg.opacity / 100})`;
+    }
+
+    function textureBackground(target = "text") {
+      return textureLayer(target)?.image || "none";
+    }
+
+    function textureLayer(target = "text") {
+      const cfg = textureConfig(target);
+      if (cfg.size <= 0 || cfg.count <= 0) return null;
+      const color = textureColor(target);
+      const spacing = Math.max(12, 58 - cfg.count);
+      const tileW = spacing * 2;
+      const tileH = spacing * 1.62;
+      const first = { x: spacing * 0.34, y: spacing * 0.34 };
+      const second = { x: spacing * 1.34, y: spacing * 1.15 };
+      let shapes = "";
+      if (cfg.shape === "star") {
+        const outer = cfg.size * 1.65;
+        const inner = outer * 0.45;
+        const starPoints = (cx, cy) => Array.from({ length: 10 }, (_, i) => {
+          const angle = -Math.PI / 2 + i * Math.PI / 5;
+          const radius = i % 2 ? inner : outer;
+          return `${cx + Math.cos(angle) * radius},${cy + Math.sin(angle) * radius}`;
+        }).join(" ");
+        shapes = `<polygon fill="${color}" points="${starPoints(first.x, first.y)}"/><polygon fill="${color}" points="${starPoints(second.x, second.y)}"/>`;
+      } else {
+        shapes = `<circle cx="${first.x}" cy="${first.y}" r="${cfg.size}" fill="${color}"/><circle cx="${second.x}" cy="${second.y}" r="${cfg.size}" fill="${color}"/>`;
+      }
+      const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="${tileW}" height="${tileH}" viewBox="0 0 ${tileW} ${tileH}">${shapes}</svg>`;
+      return {
+        image: `url("data:image/svg+xml,${encodeURIComponent(svg)}")`,
+        size: `${tileW}px ${tileH}px`
+      };
+    }
+
+    function openColorPicker(mode) {
+      pickerBefore = snapshotState();
+      state.colorPicker = mode;
+      renderColorPicker();
+    }
+
+    function colorForMode(mode) {
+      if (mode === "text") return state.textColor;
+      if (mode === "symbol") return state.symbolColor;
+      if (mode === "bg") return state.bgColor;
+      if (mode.startsWith("texture:")) return textureConfig(mode.split(":")[1]).color;
+      return state.textTextureConfig.color;
+    }
+
+    function setColorForMode(mode, value) {
+      if (mode === "text") state.textColor = value;
+      if (mode === "symbol") state.symbolColor = value;
+      if (mode === "bg") {
+        state.bgColor = value;
+        state.bgColorChosen = true;
+      }
+      if (mode.startsWith("texture:")) {
+        const cfg = textureConfig(mode.split(":")[1]);
+        cfg.color = value;
+        cfg.colorChosen = true;
+      }
+    }
+
+    let pickerBefore = null;
+    function renderColorPicker() {
+      const popover = document.getElementById("colorPopover");
+      if (!state.colorPicker) {
+        popover.classList.remove("show");
+        popover.innerHTML = "";
+        return;
+      }
+      const mode = state.colorPicker;
+      const textureTarget = mode.startsWith("texture:") ? mode.split(":")[1] : null;
+      const opacityKey = mode === "bg" ? "bgOpacity" : mode + "Opacity";
+      const finish = cancel => {
+        if (cancel && pickerBefore) restoreSnapshot(pickerBefore);
+        else if (pickerBefore && pickerBefore !== snapshotState()) { history.past.push(pickerBefore); history.future = []; }
+        state.colorPicker = null;
+        pickerBefore = null;
+        render();
+      };
+      createDesignerColorPicker(popover, {
+        color: colorForMode(mode),
+        opacity: textureTarget ? textureConfig(textureTarget).opacity : state[opacityKey],
+        change: (color, opacity) => {
+          setColorForMode(mode, color);
+          if (textureTarget) textureConfig(textureTarget).opacity = opacity;
+          else state[opacityKey] = opacity;
+          refreshTexturePreview();
+        },
+        cancel: () => finish(true),
+        done: () => finish(false)
+      });
+    }
+
+    function hexToHue(hex) {
+      const { r, g, b } = hexToRgb(hex);
+      const rn = r / 255, gn = g / 255, bn = b / 255;
+      const max = Math.max(rn, gn, bn), min = Math.min(rn, gn, bn);
+      if (max === min) return 330;
+      let h = 0;
+      if (max === rn) h = 60 * (((gn - bn) / (max - min)) % 6);
+      if (max === gn) h = 60 * ((bn - rn) / (max - min) + 2);
+      if (max === bn) h = 60 * ((rn - gn) / (max - min) + 4);
+      return Math.round((h + 360) % 360);
+    }
+
+    function hslToHex(h, s, l) {
+      s /= 100;
+      l /= 100;
+      const k = n => (n + h / 30) % 12;
+      const a = s * Math.min(l, 1 - l);
+      const f = n => l - a * Math.max(-1, Math.min(k(n) - 3, Math.min(9 - k(n), 1)));
+      return `#${[f(0), f(8), f(4)].map(v => Math.round(255 * v).toString(16).padStart(2, "0")).join("")}`;
+    }
+
+    function hexToRgb(hex) {
+      const clean = hex.replace("#", "");
+      return {
+        r: parseInt(clean.slice(0, 2), 16),
+        g: parseInt(clean.slice(2, 4), 16),
+        b: parseInt(clean.slice(4, 6), 16)
+      };
+    }
+
+    function undoIconSvg(reverse) {
+      const style = reverse ? ` style="transform:scaleX(-1)"` : "";
+      return `<svg class="action-icon" viewBox="0 0 24 24" fill="none"${style} aria-hidden="true">
+        <path d="M9 7H5V3" stroke="currentColor" stroke-width="2.1" stroke-linecap="round" stroke-linejoin="round"/>
+        <path d="M5.4 7.4C7.25 5.25 9.65 4.15 12.45 4.35C16.65 4.65 20 8.15 20 12.35C20 16.85 16.35 20.5 11.85 20.5C9.55 20.5 7.5 19.55 6.05 18.05" stroke="currentColor" stroke-width="2.1" stroke-linecap="round"/>
+      </svg>`;
+    }
+
+    function exportIconSvg() {
+      return `<svg class="action-icon" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+        <path d="M12 3v12" stroke="currentColor" stroke-width="2.1" stroke-linecap="round"/>
+        <path d="M8 7l4-4 4 4" stroke="currentColor" stroke-width="2.1" stroke-linecap="round" stroke-linejoin="round"/>
+        <path d="M5 12v7h14v-7" stroke="currentColor" stroke-width="2.1" stroke-linecap="round" stroke-linejoin="round"/>
+      </svg>`;
+    }
+
+    function crownSvg(color) {
+      return `<svg viewBox="0 0 100 100" width="100%" height="100%"><path fill="${color}" d="M16 78 8 28l27 26 15-39 15 39 27-26-8 50z"/></svg>`;
+    }
+
+    function renderArtworkOnly() {
+      const me = frame.querySelector(".mark-me");
+      const layout = artworkLayout(canvasMetrics()).me;
+      me.textContent = state.text;
+      Object.assign(me.style, { left: `${layout.x}px`, top: `${layout.y}px`, width: `${layout.w}px`, height: `${layout.h}px`, fontSize: `${layout.fs}px`, letterSpacing: `${layout.spacing}px` });
+      applyTextFill(me);
+      const undo = frame.querySelector(`[data-node-id="${FIGMA.action.undo.id}"]`);
+      const redo = frame.querySelector(`[data-node-id="${FIGMA.action.redo.id}"]`);
+      if (undo) undo.style.color = history.past.length ? "#161618" : "#b6b6bb";
+      if (redo) redo.style.color = history.future.length ? "#161618" : "#b6b6bb";
+    }
+
+    function renderModal() {
+      modal.classList.toggle("show", state.modalOpen);
+      if (!state.modalOpen) return;
+      sheet.innerHTML = "";
+      sheet.appendChild(rect({ x: 169, y: 15, w: 36, h: 4 }, "abs", "#d1d1d7", 999));
+      const close = txt({ x: 340, y: 18, w: 24, h: 24 }, "×", "fig-text", { fs: 28, lh: "24px", color: "#85858b", align: "center" });
+      close.onclick = () => { state.modalOpen = false; renderModal(); };
+      sheet.appendChild(close);
+      const ok = rect({ x: 172, y: 36, w: 30, h: 30 }, "round", "#16c879", 15);
+      ok.innerHTML = `<span style="color:#fff;font-size:24px">✓</span>`;
+      sheet.appendChild(ok);
+      sheet.appendChild(txt({ x: 130, y: 73, w: 115, h: 31 }, "图片已生成", "fig-text", { fs: 23, lh: "31px", fw: 800, color: "#171717", align: "center" }));
+      sheet.appendChild(txt({ x: 119, y: 110, w: 136, h: 16 }, "你的专属 I ❤️ 值得被收藏", "fig-text", { fs: 12, lh: "16px", color: "#929298", align: "center" }));
+      const metrics = canvasMetrics();
+      const previewScale = Math.min(251 / metrics.w, 255 / metrics.h);
+      const preview = rect({
+        x: 69 + (251 - metrics.w * previewScale) / 2,
+        y: 132 + (255 - metrics.h * previewScale) / 2,
+        w: metrics.w * previewScale,
+        h: metrics.h * previewScale
+      }, "abs export-preview", "transparent");
+      preview.style.overflow = "hidden";
+      preview.style.pointerEvents = "none";
+      const scene = document.createElement("div");
+      scene.style.position = "absolute";
+      scene.style.width = `${metrics.w}px`;
+      scene.style.height = `${metrics.h}px`;
+      scene.style.transformOrigin = "top left";
+      scene.style.transform = `scale(${previewScale})`;
+      // Reuse the rendered artwork so preview and editor share every visual layer.
+      const layers = document.createElement("div");
+      layers.style.position = "absolute";
+      layers.style.left = `${-metrics.x}px`;
+      layers.style.top = `${-metrics.y}px`;
+      document.getElementById("previewScene").querySelectorAll(":scope > .canvas, :scope > .mark-i, :scope > .heart-large, :scope > .mark-me, :scope > .sticker-clip").forEach(source => {
+        const copy = source.cloneNode(true);
+        copy.classList.remove("active");
+        copy.querySelectorAll(".active").forEach(child => child.classList.remove("active"));
+        copy.querySelectorAll(".sticker-handle").forEach(handle => handle.remove());
+        copy.removeAttribute("id");
+        layers.appendChild(copy);
+      });
+      scene.appendChild(layers);
+      preview.appendChild(scene);
+      sheet.appendChild(preview);
+      sheet.appendChild(txt({ x: 154, y: 393, w: 66, h: 15 }, "生成结果预览", "fig-text", { fs: 11, color: "#99999f", align: "center" }));
+      const save = rect({ x: 22, y: 426, w: 330, h: 50 }, "round modal-action save", "#171717", 25);
+      save.innerHTML = `<svg class="modal-icon" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+        <path d="M6 16v4h12v-4M12 4v12M8 12l4 4 4-4" stroke="#fff" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/>
+      </svg><b class="modal-label" style="color:#fff">保存到相册</b>`;
+      save.onclick = async () => {
+        if (window.xhs && window.xhs.miniTool) { await deliverMiniToolImage("save"); return; }
+        if (save.dataset.saving) return;
+        save.dataset.saving = "true";
+        try {
+          await document.fonts.ready;
+          await Promise.all([...preview.querySelectorAll("img")].map(img => img.decode()));
+          const canvas = await exportDesignCanvas();
+          const blob = await new Promise(resolve => canvas.toBlob(resolve, "image/png"));
+          if (!blob) throw new Error("PNG generation failed");
+          const url = URL.createObjectURL(blob);
+          const link = document.createElement("a");
+          link.href = url;
+          link.download = "i-love-me.png";
+          link.click();
+          setTimeout(() => URL.revokeObjectURL(url), 60000);
+          toast("图片已下载");
+        } catch (error) {
+          console.error("Image export failed", error);
+          toast("图片保存失败，请重试");
+        } finally {
+          delete save.dataset.saving;
+        }
+      };
+      sheet.appendChild(save);
+      const note = rect({ x: 22, y: 488, w: 330, h: 50 }, "round modal-action note", "#fff", 25, "1px solid #dedee4");
+      note.innerHTML = `<svg class="modal-icon" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+        <path d="M7 11h10c1.66 0 3 1.27 3 2.82v6.36C20 21.73 18.66 23 17 23H7c-1.66 0-3-1.27-3-2.82v-6.36C4 12.27 5.34 11 7 11Z" stroke="#ff1687" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/>
+        <path d="M12 18V3M16 7l-4-4-4 4" stroke="#ff1687" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/>
+      </svg><b class="modal-label">发布笔记</b><span class="modal-badge">小红书</span>`;
+      note.onclick = publishCurrentDesign;
+      sheet.appendChild(note);
+      const edit = rect({ x: 22, y: 549, w: 330, h: 50 }, "round modal-action edit", "#fff", 25, "1px solid #dedee4");
+      edit.innerHTML = `<b class="modal-label">重新编辑</b>`;
+      edit.onclick = () => { state.modalOpen = false; renderModal(); };
+      sheet.appendChild(edit);
+      if (window.xhs && window.xhs.miniTool) prepareMiniToolImage().catch(error => console.warn("Export preparation failed", error.message));
+    }
+
+    async function publishCurrentDesign() {
+      await deliverMiniToolImage("post");
+    }
+
+    async function exportDesignCanvas() {
+      return exportNativeDesignCanvas();
+    }
+
+    async function exportBrowserDesignCanvas() {
+      const metrics = canvasMetrics();
+      const assetCache = new Map();
+      const dataUrl = async url => {
+        if (url.startsWith("data:")) return url;
+        if (!assetCache.has(url)) assetCache.set(url, (async () => {
+          const response = await fetch(url);
+          if (!response.ok) throw new Error("Export asset failed");
+          const blob = await response.blob();
+          return new Promise((resolve, reject) => {
+            const reader = new FileReader();
+            reader.onload = () => resolve(reader.result);
+            reader.onerror = reject;
+            reader.readAsDataURL(blob);
+          });
+        })());
+        return assetCache.get(url);
+      };
+      const copyNode = async source => {
+        const copy = source.cloneNode(false);
+        copy.removeAttribute("id");
+        copy.removeAttribute("class");
+        const computed = getComputedStyle(source);
+        for (const property of computed) {
+          let value = computed.getPropertyValue(property);
+          const urls = [...value.matchAll(/url\(["']?(.*?)["']?\)/g)];
+          for (const match of urls) value = value.replace(match[0], `url("${await dataUrl(match[1])}")`);
+          copy.style.setProperty(property, value);
+        }
+        if (source instanceof HTMLImageElement) copy.src = await dataUrl(source.currentSrc || source.src);
+        if (source.classList.contains("active")) copy.style.outline = "none";
+        for (const child of source.childNodes) {
+          if (child.nodeType === Node.TEXT_NODE) copy.appendChild(child.cloneNode());
+          else if (child.nodeType === Node.ELEMENT_NODE && !child.classList.contains("sticker-handle")) copy.appendChild(await copyNode(child));
+        }
+        return copy;
+      };
+      const root = document.createElement("div");
+      root.setAttribute("xmlns", "http://www.w3.org/1999/xhtml");
+      root.style.cssText = `position:relative;width:${metrics.w}px;height:${metrics.h}px;overflow:hidden;`;
+      const font = await dataUrl(new URL("素材包/英文字体-Corben/CooperBlackStd-3.otf", location.href).href);
+      const style = document.createElement("style");
+      style.textContent = `@font-face{font-family:CooperStdBlack;src:url("${font}");font-weight:900;}`;
+      root.appendChild(style);
+      const layers = document.createElement("div");
+      layers.style.cssText = `position:absolute;left:${-metrics.x}px;top:${-metrics.y}px;`;
+      for (const source of document.getElementById("previewScene").querySelectorAll(":scope > .canvas, :scope > .mark-i, :scope > .heart-large, :scope > .mark-me, :scope > .sticker-clip")) {
+        const copy = await copyNode(source);
+        copy.style.outline = "none";
+        layers.appendChild(copy);
+      }
+      root.appendChild(layers);
+      const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="1080" height="${Math.round(1080 * metrics.h / metrics.w)}" viewBox="0 0 ${metrics.w} ${metrics.h}"><foreignObject width="100%" height="100%">${new XMLSerializer().serializeToString(root)}</foreignObject></svg>`;
+      const image = new Image();
+      image.src = `data:image/svg+xml;charset=utf-8,${encodeURIComponent(svg)}`;
+      await image.decode();
+      const canvas = document.createElement("canvas");
+      canvas.width = 1080;
+      canvas.height = Math.round(1080 * metrics.h / metrics.w);
+      canvas.getContext("2d").drawImage(image, 0, 0);
+      return canvas;
+    }
+
+    function toast(message) {
+      const el = document.getElementById("toast");
+      el.textContent = message;
+      el.classList.add("show");
+      clearTimeout(toast.timer);
+      toast.timer = setTimeout(() => el.classList.remove("show"), 1600);
+    }
+
+    let settledViewport = null;
+    let typingViewport = null;
+    let typingScrollTop = 0;
+    let typingReleaseTimer;
+    let typingElement = null;
+
+    function isTextEntry(element) {
+      return element && element.matches('input:not([type="range"]):not([type="file"]):not([type="color"]), textarea, [contenteditable="true"]');
+    }
+
+    function keyboardViewportLayout(viewport, visualHeight, editingMainText, innerHeight = visualHeight) {
+      const scale = Math.min(viewport.width, 390) / 390;
+      const reportedHeight = Math.min(viewport.height, visualHeight || viewport.height, innerHeight || viewport.height);
+      const keyboardOpen = !!editingMainText;
+      const measuredKeyboard = viewport.height - reportedHeight > 100;
+      // Some in-app keyboards overlay the page without resizing either viewport.
+      const typingHeight = measuredKeyboard ? reportedHeight - 24 : viewport.height * 0.44;
+      const visibleHeight = keyboardOpen ? Math.max(156 * scale, Math.min(reportedHeight, typingHeight)) : viewport.height;
+      const height = visibleHeight / scale;
+      const normalPreview = Math.min(437, viewport.height / scale * 0.49);
+      const previewHeight = keyboardOpen ? Math.max(0, Math.min(normalPreview, height - 156)) : normalPreview;
+      return { visibleHeight, height, previewHeight, keyboardOpen };
+    }
+
+    function fit() {
+      // Reserve space for the field; crop the preview's upper edge without shrinking its controls.
+      const viewport = typingViewport || { width: window.innerWidth, height: window.innerHeight };
+      if (!typingViewport) settledViewport = viewport;
+      const scale = Math.min(viewport.width, 390) / 390;
+      const mobile = viewport.width <= 600 || (window.matchMedia && window.matchMedia("(pointer: coarse)").matches);
+      const editingMainText = mobile && typingElement && typingElement.matches("input.field");
+      const layout = keyboardViewportLayout(viewport, window.visualViewport ? window.visualViewport.height : window.innerHeight, editingMainText, window.innerHeight);
+      const visibleHeight = layout.visibleHeight;
+      frame.style.transform = `scale(${scale})`;
+      const height = layout.height;
+      const previewHeight = layout.previewHeight;
+      frame.style.height = `${height}px`;
+      const pane = frame.querySelector(".preview-pane");
+      const scene = document.getElementById("previewScene");
+      const editor = frame.querySelector(".editor-pane");
+      if (pane && scene && editor) {
+        pane.style.height = `${previewHeight}px`;
+        const sceneScale = (layout.keyboardOpen ? Math.min(437, viewport.height / scale * 0.49) : previewHeight) / 437;
+        scene.style.top = layout.keyboardOpen ? `${previewHeight - 437 * sceneScale}px` : "0px";
+        scene.style.left = `${(390 - 390 * sceneScale) / 2}px`;
+        scene.style.transform = `scale(${sceneScale})`;
+        editor.style.top = `${previewHeight}px`;
+        editor.style.height = `${height - previewHeight}px`;
+      }
+      const app = document.getElementById("app");
+      app.style.height = `${visibleHeight}px`;
+      app.style.position = editingMainText ? "fixed" : "";
+      app.style.top = editingMainText ? "0px" : "";
+      app.style.transform = typingViewport && window.visualViewport ? `translateY(${window.visualViewport.offsetTop || 0}px)` : "";
+      const notice = document.getElementById("toast");
+      if (notice) {
+        notice.style.top = editingMainText ? `${(window.visualViewport ? window.visualViewport.offsetTop || 0 : 0) + visibleHeight - 48}px` : "";
+        notice.style.bottom = editingMainText ? "auto" : "";
+      }
+      frame.querySelectorAll("input.field").forEach(input => { input.style.fontSize = `${Math.max(17, 16 / scale)}px`; });
+      if (typingViewport && (window.scrollX || window.scrollY)) window.scrollTo(0, 0);
+      if (typingViewport) {
+        app.scrollTop = 0; app.scrollLeft = 0;
+        frame.scrollTop = 0; frame.scrollLeft = 0;
+      }
+      if (layout.keyboardOpen) {
+        const scroll = frame.querySelector(".editor-scroll");
+        typingScrollTop = 0;
+        if (scroll) scroll.scrollTop = 0;
+      }
+    }
+
+    document.addEventListener("focusin", event => {
+      if (!isTextEntry(event.target)) return;
+      typingElement = event.target;
+      clearTimeout(typingReleaseTimer);
+      if (!typingViewport) {
+        typingViewport = settledViewport || { width: window.innerWidth, height: window.innerHeight };
+        const scroll = frame.querySelector(".editor-scroll");
+        typingScrollTop = scroll ? scroll.scrollTop : 0;
+      }
+      fit();
+    });
+    document.addEventListener("focusout", () => {
+      clearTimeout(typingReleaseTimer);
+      typingReleaseTimer = setTimeout(() => {
+        if (isTextEntry(document.activeElement)) return;
+        typingViewport = null;
+        typingElement = null;
+        if (window.scrollX || window.scrollY) window.scrollTo(0, 0);
+        fit();
+      }, 350);
+    });
+    document.addEventListener("scroll", event => {
+      if (typingViewport && event.target.matches && event.target.matches("#app, #frame, .editor-pane")) {
+        event.target.scrollTop = 0;
+        event.target.scrollLeft = 0;
+      }
+      if (typingViewport && event.target.classList && event.target.classList.contains("editor-scroll") && event.target.scrollTop !== typingScrollTop) {
+        event.target.scrollTop = typingScrollTop;
+      }
+    }, true);
+    window.addEventListener("resize", fit);
+    if (window.visualViewport) {
+      window.visualViewport.addEventListener("resize", fit);
+      window.visualViewport.addEventListener("scroll", fit);
+    }
+    render();
+    fit();
+    if (document.fonts && document.fonts.ready) document.fonts.ready.then(() => { renderArtworkOnly(); fit(); });
+  </script>
+</body>
+</html>
