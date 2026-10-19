@@ -793,7 +793,7 @@
           { key: "canvas", id: "7663:3786", label: "画布", x: 321, y: 462, w: 30, h: 21 }
         ]
       },
-      textColors: [
+      colors: [
         { key: "rainbow", bg: "linear-gradient(90deg,#ff3f6c 0%,#ffcf35 18%,#5edf68 36%,#38dded 55%,#5f6bf7 73%,#ed47dc 100%)" },
         { key: "#ff0000", bg: "#ff0000" },
         { key: "#000000", bg: "#000", bd: "1px solid #e7e7eb" },
@@ -803,17 +803,6 @@
         { key: "#8df2ee", bg: "#8df2ee" },
         { key: "#2dfef8", bg: "#2dfef8" },
         { key: "#a0fe2b", bg: "#a0fe2b" }
-      ],
-      colors: [
-        { key: "rainbow", bg: "conic-gradient(#ff1687,#fff84b,#5bd8b9,#67d8e9,#b586ee,#ff1687)" },
-        { key: "#ff1b12", bg: "#ff1b12" },
-        { key: "#000000", bg: "#000" },
-        { key: "#ffffff", bg: "#fff", bd: "1px solid #e6e6ea" },
-        { key: "#f36aad", bg: "#f36aad" },
-        { key: "#ffeba7", bg: "#ffeba7" },
-        { key: "#c8a4f0", bg: "#c8a4f0" },
-        { key: "#7fdbea", bg: "#7fdbea" },
-        { key: "#5bd4b5", bg: "#5bd4b5" }
       ]
     };
 
@@ -827,7 +816,7 @@
       symbolOpacity: 100,
       bgOpacity: 100,
       symbol: "heart",
-      symbolColor: "#ff1b12",
+      symbolColor: "#ff0000",
       bgColor: "#ffffff",
       bgColorChosen: false,
       ratio: "1:1",
@@ -1408,7 +1397,7 @@
         state.text = "ME";
         state.textColor = "#000000";
         state.symbol = "heart";
-        state.symbolColor = "#ff1b12";
+        state.symbolColor = "#ff0000";
         state.bgColor = "#ffffff";
         state.bgColorChosen = false;
         state.ratio = "1:1";
@@ -1579,7 +1568,7 @@
       frame.appendChild(txt({ x: 20, y: symbolBaseY, w: 56, h: 20, id: "7663:3851" }, "更换符号", "fig-text", { fs: 14, color: "#161618" }));
       [["heart",20],["star",109],["ban",198],["paw",287]].forEach(([key, x]) => {
         const tile = rect({ x, y: symbolBaseY + 27, w: 83, h: 70, id: `symbol-${key}` }, "tile" + (state.symbol === key ? " active" : ""), "transparent", 8);
-        tile.innerHTML = `<div style="width:38px;height:38px">${symbolSvg(key, "#ff1b12")}</div>`;
+        tile.innerHTML = `<div style="width:38px;height:38px">${symbolSvg(key, "#ff0000")}</div>`;
         tile.onclick = () => commitChange(() => { state.symbol = key; });
         frame.appendChild(tile);
       });
@@ -1764,8 +1753,7 @@
     }
 
     function renderSwatches(x0, y, mode, gap = 40) {
-      const colors = mode === "text" ? FIGMA.textColors : FIGMA.colors;
-      colors.forEach((c, i) => {
+      FIGMA.colors.forEach((c, i) => {
         const b = document.createElement("button");
         setPos(b, { x: x0 + i * gap, y, w: 22, h: 22, id: `${mode}-color-${i}` });
         b.className = "abs swatch";
