@@ -1,0 +1,1497 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <title>I LOVE ME 生成器</title>
+  <style>
+    @font-face {
+      font-family: CooperLocal;
+      src: url("素材包/英文字体-Corben/CooperBlackStd-3.otf") format("opentype");
+      font-weight: 900;
+    }
+
+    :root {
+      --pink: #ff1493;
+      --pink-soft: #fff0f8;
+      --ink: #151519;
+      --muted: #9b9ba2;
+      --line: #e5e5ea;
+      --panel: #ffffff;
+      --field: #f4f4f7;
+      --page: #f1f1f4;
+      --green: #17c879;
+    }
+
+    * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+
+    html, body {
+      margin: 0;
+      min-height: 100%;
+      background: #dcdce0;
+      font-family: -apple-system, BlinkMacSystemFont, "PingFang SC", "Helvetica Neue", Arial, sans-serif;
+      color: var(--ink);
+    }
+
+    body {
+      display: flex;
+      justify-content: center;
+    }
+
+    button, input {
+      font: inherit;
+    }
+
+    button {
+      border: 0;
+      background: none;
+      cursor: pointer;
+    }
+
+    .phone {
+      width: min(100vw, 430px);
+      min-height: 100vh;
+      background: var(--page);
+      position: relative;
+      overflow: hidden;
+    }
+
+    .stage {
+      padding: max(28px, env(safe-area-inset-top)) 18px 0;
+    }
+
+    .brand {
+      width: 100%;
+      max-width: 320px;
+      margin: 26px auto 26px;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      font-size: 21px;
+      font-weight: 800;
+      letter-spacing: 0;
+    }
+
+    .brand .heart {
+      color: var(--pink);
+      font-size: 32px;
+      line-height: 1;
+      transform: translateY(-1px);
+    }
+
+    .canvas-shell {
+      width: min(78vw, 320px);
+      margin: 0 auto;
+      position: relative;
+    }
+
+    .artboard {
+      width: 100%;
+      aspect-ratio: 1 / 1;
+      background: #fff;
+      border-radius: 8px;
+      position: relative;
+      overflow: hidden;
+      box-shadow: 0 1px 0 rgba(0,0,0,.02);
+      touch-action: none;
+      transition: aspect-ratio .25s ease, background .2s ease;
+    }
+
+    .artboard.ratio-34 { aspect-ratio: 3 / 4; }
+    .artboard.ratio-916 { aspect-ratio: 9 / 16; }
+
+    .pattern-layer {
+      position: absolute;
+      inset: 0;
+      opacity: .12;
+      pointer-events: none;
+      mix-blend-mode: multiply;
+    }
+
+    .pattern-dot {
+      position: absolute;
+      border-radius: 50%;
+      background: var(--pink);
+    }
+
+    .word-group {
+      position: absolute;
+      inset: 0;
+      display: grid;
+      place-items: center;
+      pointer-events: none;
+    }
+
+    .word-layout {
+      width: 78%;
+      height: 66%;
+      position: relative;
+      transform: translateY(2%);
+    }
+
+    .big-text {
+      position: absolute;
+      font-family: CooperLocal, Georgia, "Times New Roman", serif;
+      font-weight: 900;
+      color: var(--text-color, #000);
+      line-height: .82;
+      letter-spacing: 0;
+      white-space: nowrap;
+      filter: contrast(1.05);
+    }
+
+    .letter-i {
+      left: 5%;
+      top: 3%;
+      font-size: clamp(82px, 30vw, 146px);
+    }
+
+    .main-word {
+      left: 3%;
+      bottom: 0;
+      font-size: clamp(96px, 35vw, 164px);
+      max-width: 98%;
+      transform-origin: left bottom;
+    }
+
+    .main-symbol {
+      position: absolute;
+      left: 50%;
+      top: -8%;
+      width: 37%;
+      height: 37%;
+      display: grid;
+      place-items: center;
+      color: var(--symbol-color, var(--pink));
+      pointer-events: auto;
+      touch-action: none;
+    }
+
+    .main-symbol.selected::after,
+    .sticker.selected::after {
+      content: "";
+      position: absolute;
+      inset: -5px;
+      border: 2px solid var(--pink);
+      border-radius: 5px;
+      pointer-events: none;
+    }
+
+    .main-symbol.selected::before,
+    .sticker.selected::before {
+      content: "";
+      position: absolute;
+      width: 9px;
+      height: 9px;
+      border: 2px solid var(--pink);
+      background: #fff;
+      border-radius: 50%;
+      top: -9px;
+      right: -9px;
+      z-index: 2;
+    }
+
+    .symbol-svg {
+      width: 100%;
+      height: 100%;
+      overflow: visible;
+      display: block;
+    }
+
+    .sticker {
+      position: absolute;
+      width: 62px;
+      height: 62px;
+      left: 74%;
+      top: 9%;
+      transform: translate(-50%, -50%) rotate(13deg);
+      touch-action: none;
+      cursor: grab;
+      display: grid;
+      place-items: center;
+      z-index: 4;
+    }
+
+    .sticker img {
+      width: 100%;
+      height: 100%;
+      object-fit: contain;
+      pointer-events: none;
+    }
+
+    .actions {
+      width: min(90vw, 390px);
+      margin: 12px auto 16px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 8px;
+    }
+
+    .round-actions {
+      display: flex;
+      gap: 12px;
+    }
+
+    .icon-btn {
+      width: 42px;
+      height: 42px;
+      border-radius: 50%;
+      background: #fff;
+      display: grid;
+      place-items: center;
+      color: #151519;
+      box-shadow: 0 1px 0 rgba(0,0,0,.02);
+    }
+
+    .icon-btn:disabled {
+      opacity: .38;
+    }
+
+    .right-actions {
+      margin-left: auto;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .pill {
+      min-height: 42px;
+      padding: 0 19px;
+      border-radius: 999px;
+      background: #e9e9ee;
+      color: #151519;
+      font-size: 18px;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+    }
+
+    .pill.dark {
+      background: #141417;
+      color: #fff;
+      font-weight: 800;
+    }
+
+    .editor {
+      position: relative;
+      background: #fff;
+      border-radius: 26px 26px 0 0;
+      min-height: 44vh;
+      padding: 9px 22px max(20px, env(safe-area-inset-bottom));
+    }
+
+    .handle {
+      width: 38px;
+      height: 5px;
+      border-radius: 999px;
+      background: #d9d9df;
+      margin: 0 auto 18px;
+    }
+
+    .tabs {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      margin-bottom: 18px;
+    }
+
+    .tab {
+      position: relative;
+      height: 38px;
+      font-size: 18px;
+      color: #9b9ba2;
+      font-weight: 500;
+    }
+
+    .tab.active {
+      color: #151519;
+      font-weight: 800;
+    }
+
+    .tab.active::after {
+      content: "";
+      position: absolute;
+      left: 50%;
+      bottom: -8%;
+      width: 22px;
+      height: 3px;
+      border-radius: 999px;
+      transform: translateX(-50%);
+      background: var(--pink);
+    }
+
+    .panel { display: none; }
+    .panel.active { display: block; }
+
+    .label {
+      color: #96969d;
+      font-size: 17px;
+      margin: 16px 0 10px;
+    }
+
+    .text-input {
+      width: 100%;
+      height: 50px;
+      border: 0;
+      outline: 0;
+      border-radius: 12px;
+      background: var(--field);
+      padding: 0 14px;
+      font-size: 22px;
+      color: #17171a;
+    }
+
+    .swatches {
+      display: flex;
+      align-items: center;
+      gap: 15px;
+      overflow-x: auto;
+      padding: 2px 2px 4px;
+      scrollbar-width: none;
+    }
+
+    .swatches::-webkit-scrollbar { display: none; }
+
+    .swatch {
+      width: 28px;
+      height: 28px;
+      border-radius: 50%;
+      flex: 0 0 auto;
+      border: 1px solid rgba(0,0,0,.08);
+      position: relative;
+    }
+
+    .swatch.rainbow {
+      background: conic-gradient(#ff2a93, #fff94c, #5edbb7, #65d8ef, #9c66ff, #ff2a93);
+    }
+
+    .swatch.active::after {
+      content: "";
+      position: absolute;
+      inset: -5px;
+      border: 2px solid var(--pink);
+      border-radius: 50%;
+    }
+
+    .soft-card {
+      border-radius: 18px;
+      background: #f6f6f8;
+      padding: 16px;
+      margin-top: 16px;
+    }
+
+    .row {
+      min-height: 48px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 14px;
+      color: #96969d;
+      font-size: 17px;
+    }
+
+    .row + .row {
+      border-top: 1px solid #e2e2e7;
+    }
+
+    .toggle {
+      width: 54px;
+      height: 32px;
+      padding: 3px;
+      border-radius: 999px;
+      background: #9b9ba0;
+      transition: background .2s ease;
+    }
+
+    .toggle span {
+      width: 26px;
+      height: 26px;
+      display: block;
+      background: #fff;
+      border-radius: 50%;
+      transition: transform .2s ease;
+      box-shadow: 0 1px 4px rgba(0,0,0,.12);
+    }
+
+    .toggle.on {
+      background: var(--pink);
+    }
+
+    .toggle.on span {
+      transform: translateX(22px);
+    }
+
+    .mini-shapes {
+      display: flex;
+      align-items: center;
+      gap: 18px;
+      color: #8d8d93;
+    }
+
+    .ring {
+      width: 27px;
+      height: 27px;
+      border-radius: 50%;
+      border: 5px solid var(--pink);
+      position: relative;
+    }
+
+    .ring::after {
+      content: "";
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      background: var(--pink);
+      position: absolute;
+      inset: 0;
+      margin: auto;
+    }
+
+    input[type="range"] {
+      width: 100%;
+      accent-color: #55555c;
+    }
+
+    .range-line {
+      flex: 1;
+      display: grid;
+      grid-template-columns: 1fr 30px;
+      align-items: center;
+      gap: 12px;
+      color: #151519;
+    }
+
+    .upload-row {
+      height: 56px;
+      border-radius: 14px;
+      background: #f2f2f5;
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      padding: 0 16px;
+      font-size: 20px;
+      color: #151519;
+      margin: 14px 0;
+    }
+
+    .upload-row small {
+      color: #9b9ba2;
+      font-size: 14px;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    .segmented {
+      height: 38px;
+      border-radius: 999px;
+      background: #ececf1;
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      padding: 2px;
+      margin-bottom: 12px;
+    }
+
+    .segment {
+      border-radius: 999px;
+      color: #98989f;
+      font-size: 16px;
+    }
+
+    .segment.active {
+      background: #fff;
+      color: #151519;
+      box-shadow: 0 1px 4px rgba(0,0,0,.06);
+    }
+
+    .grid {
+      display: grid;
+      grid-template-columns: repeat(5, 1fr);
+      gap: 10px;
+    }
+
+    .tile {
+      aspect-ratio: 1 / 1;
+      border-radius: 14px;
+      background: #f3f3f6;
+      display: grid;
+      place-items: center;
+      border: 1.5px solid transparent;
+      color: #85858b;
+      position: relative;
+      overflow: hidden;
+      min-width: 0;
+    }
+
+    .tile.selected {
+      border-color: var(--pink);
+      background: var(--pink-soft);
+    }
+
+    .tile img {
+      width: 74%;
+      height: 74%;
+      object-fit: contain;
+    }
+
+    .tile .plus {
+      font-size: 25px;
+      line-height: 1;
+    }
+
+    .tile small {
+      font-size: 12px;
+      margin-top: 2px;
+    }
+
+    .delete-sticker {
+      width: 100%;
+      height: 46px;
+      margin-top: 16px;
+      border-radius: 999px;
+      background: #ededf2;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 10px;
+      font-size: 18px;
+      color: #18181c;
+    }
+
+    .symbol-grid {
+      grid-template-columns: repeat(4, 1fr);
+      margin-top: 12px;
+    }
+
+    .canvas-controls .row {
+      min-height: 54px;
+    }
+
+    .ratio-control {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 0;
+      background: #ececf1;
+      border-radius: 999px;
+      padding: 2px;
+      flex: 1;
+    }
+
+    .ratio-control button {
+      height: 36px;
+      border-radius: 999px;
+      color: #8f8f96;
+      font-size: 16px;
+    }
+
+    .ratio-control button.active {
+      color: #151519;
+      background: #fff;
+      box-shadow: 0 1px 4px rgba(0,0,0,.06);
+    }
+
+    .modal {
+      position: fixed;
+      inset: 0;
+      z-index: 40;
+      display: none;
+      align-items: flex-end;
+      justify-content: center;
+      background: rgba(0,0,0,.68);
+      backdrop-filter: blur(8px);
+    }
+
+    .modal.show { display: flex; }
+
+    .result-sheet {
+      width: min(100vw, 430px);
+      max-height: 88vh;
+      overflow-y: auto;
+      background: #f7f7f9;
+      border-radius: 34px 34px 0 0;
+      padding: 18px 24px max(24px, env(safe-area-inset-bottom));
+      text-align: center;
+      position: relative;
+    }
+
+    .close {
+      position: absolute;
+      right: 22px;
+      top: 20px;
+      width: 36px;
+      height: 36px;
+      display: grid;
+      place-items: center;
+      color: #77777e;
+    }
+
+    .success {
+      width: 38px;
+      height: 38px;
+      border-radius: 50%;
+      background: var(--green);
+      color: #fff;
+      margin: 28px auto 10px;
+      display: grid;
+      place-items: center;
+    }
+
+    .result-sheet h2 {
+      margin: 0;
+      font-size: 32px;
+      line-height: 1.1;
+      font-weight: 900;
+    }
+
+    .result-sheet p {
+      margin: 8px 0 14px;
+      color: #909098;
+      font-size: 16px;
+    }
+
+    .result-preview {
+      width: min(72vw, 280px);
+      margin: 0 auto;
+      border-radius: 18px;
+      background: #fff;
+      overflow: hidden;
+    }
+
+    .result-preview img {
+      display: block;
+      width: 100%;
+      height: auto;
+    }
+
+    .caption {
+      margin: 10px 0 18px;
+      color: #9b9ba2;
+      font-size: 15px;
+    }
+
+    .modal-actions {
+      display: grid;
+      gap: 12px;
+    }
+
+    .wide-btn {
+      height: 58px;
+      border-radius: 999px;
+      background: #fff;
+      border: 1px solid #dedee4;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 12px;
+      font-size: 22px;
+      font-weight: 800;
+      color: #151519;
+    }
+
+    .wide-btn.dark {
+      border-color: #141417;
+      background: #141417;
+      color: #fff;
+    }
+
+    .tag {
+      font-size: 14px;
+      color: var(--pink);
+      background: #fff0f8;
+      padding: 4px 9px;
+      border-radius: 999px;
+      font-weight: 600;
+    }
+
+    .toast {
+      position: fixed;
+      left: 50%;
+      bottom: 22px;
+      transform: translateX(-50%) translateY(20px);
+      background: rgba(18,18,20,.92);
+      color: #fff;
+      padding: 10px 16px;
+      border-radius: 999px;
+      opacity: 0;
+      pointer-events: none;
+      transition: .2s ease;
+      z-index: 80;
+      font-size: 14px;
+      white-space: nowrap;
+    }
+
+    .toast.show {
+      opacity: 1;
+      transform: translateX(-50%) translateY(0);
+    }
+
+    .hidden-input {
+      display: none;
+    }
+
+    @media (max-height: 760px) {
+      .brand { margin-top: 8px; margin-bottom: 14px; }
+      .canvas-shell { width: min(70vw, 292px); }
+      .editor { min-height: 46vh; }
+      .label { margin-top: 10px; }
+      .soft-card { padding: 12px 16px; }
+      .row { min-height: 43px; }
+    }
+  </style>
+</head>
+<body>
+  <main class="phone">
+    <section class="stage">
+      <div class="brand"><span>I</span><span class="heart">♥</span><span>Designer</span></div>
+
+      <div class="canvas-shell">
+        <div class="artboard" id="artboard">
+          <div class="pattern-layer" id="canvasPattern"></div>
+          <div class="word-group">
+            <div class="word-layout">
+              <div class="big-text letter-i" id="letterI">I</div>
+              <div class="main-symbol" id="mainSymbol" aria-label="当前符号"></div>
+              <div class="big-text main-word" id="mainWord">ME</div>
+            </div>
+          </div>
+          <div id="stickersLayer"></div>
+        </div>
+      </div>
+
+      <div class="actions">
+        <div class="round-actions">
+          <button class="icon-btn" id="undoBtn" aria-label="撤销">
+            <svg width="24" height="24" viewBox="0 0 24 24" fill="none"><path d="M9 8H5v-4" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/><path d="M5 8c2.1-2.3 4.5-3.4 7.4-3.1 4.3.4 7.6 4.1 7.6 8.4 0 4.6-3.7 8.3-8.3 8.3-2.5 0-4.7-1.1-6.2-2.8" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"/></svg>
+          </button>
+          <button class="icon-btn" id="redoBtn" aria-label="重做" disabled>
+            <svg width="24" height="24" viewBox="0 0 24 24" fill="none"><path d="M15 8h4v-4" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/><path d="M19 8c-2.1-2.3-4.5-3.4-7.4-3.1C7.3 5.3 4 9 4 13.3c0 4.6 3.7 8.3 8.3 8.3 2.5 0 4.7-1.1 6.2-2.8" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"/></svg>
+          </button>
+        </div>
+        <div class="right-actions">
+          <button class="pill" id="clearBtn">清空</button>
+          <button class="pill dark" id="exportBtn">
+            <svg width="22" height="22" viewBox="0 0 24 24" fill="none"><path d="M12 3v12m0-12 4 4m-4-4-4 4" stroke="currentColor" stroke-width="2.1" stroke-linecap="round" stroke-linejoin="round"/><path d="M5 12v7h14v-7" stroke="currentColor" stroke-width="2.1" stroke-linecap="round" stroke-linejoin="round"/></svg>
+            导出
+          </button>
+        </div>
+      </div>
+    </section>
+
+    <section class="editor">
+      <div class="handle"></div>
+      <nav class="tabs">
+        <button class="tab active" data-tab="text">文字</button>
+        <button class="tab" data-tab="symbol">符号</button>
+        <button class="tab" data-tab="sticker">贴纸</button>
+        <button class="tab" data-tab="canvas">画布</button>
+      </nav>
+
+      <div class="panel active" id="panel-text">
+        <div class="label">输入文字</div>
+        <input class="text-input" id="textInput" value="ME" maxlength="10">
+        <div class="label">文字颜色</div>
+        <div class="swatches" id="textColors"></div>
+        <div class="soft-card">
+          <div class="row">
+            <span>纹理填充</span>
+            <button class="toggle on" data-toggle="textTexture"><span></span></button>
+          </div>
+          <div class="row">
+            <span>形状</span>
+            <span class="mini-shapes"><span class="ring"></span><span style="font-size:32px">★</span></span>
+          </div>
+          <div class="row">
+            <span>纹理颜色</span>
+            <button class="swatch rainbow" data-rainbow="text" aria-label="纹理颜色"></button>
+          </div>
+          <div class="row">
+            <span>大小</span>
+            <div class="range-line"><input type="range" id="textTextureSize" min="4" max="18" value="8"><span id="textTextureSizeValue">8</span></div>
+          </div>
+          <div class="row">
+            <span>数量</span>
+            <div class="range-line"><input type="range" id="textTextureCount" min="0" max="40" value="20"><span id="textTextureCountValue">20</span></div>
+          </div>
+        </div>
+      </div>
+
+      <div class="panel" id="panel-symbol">
+        <div class="label">符号颜色</div>
+        <div class="swatches" id="symbolColors"></div>
+        <label class="upload-row">
+          <input class="hidden-input" type="file" id="symbolUpload" accept="image/*">
+          <svg width="26" height="26" viewBox="0 0 24 24" fill="none"><path d="M4 17.5 8.2 13a2 2 0 0 1 2.9 0l1.2 1.3 1.7-2.1a2 2 0 0 1 3.1 0l2.9 3.6" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/><rect x="3" y="4" width="18" height="16" rx="3" stroke="currentColor" stroke-width="1.8"/><circle cx="8.5" cy="8.5" r="1.4" fill="currentColor"/></svg>
+          <span>上传图片</span>
+          <small>图片将填充在符号内</small>
+        </label>
+        <div class="row" style="background:#f6f6f8;border-radius:14px;padding:0 16px">
+          <span>纹理填充</span>
+          <button class="toggle" data-toggle="symbolTexture"><span></span></button>
+        </div>
+        <div class="label" style="color:#151519">更换符号</div>
+        <div class="grid symbol-grid" id="symbolGrid"></div>
+      </div>
+
+      <div class="panel" id="panel-sticker">
+        <div class="segmented" id="stickerSegments">
+          <button class="segment active" data-sticker-cat="推荐">推荐</button>
+          <button class="segment" data-sticker-cat="y2k">Y2K</button>
+          <button class="segment" data-sticker-cat="韩系">韩系</button>
+          <button class="segment" data-sticker-cat="ins">ins风</button>
+        </div>
+        <div class="grid" id="stickerGrid"></div>
+        <button class="delete-sticker" id="deleteSticker">
+          <svg width="22" height="22" viewBox="0 0 24 24" fill="none"><path d="M4 7h16M10 11v6m4-6v6M9 7l1-2h4l1 2m-8 0 1 13h8l1-13" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"/></svg>
+          删除贴纸
+        </button>
+      </div>
+
+      <div class="panel canvas-controls" id="panel-canvas">
+        <div class="row">
+          <span>背景颜色</span>
+          <div class="swatches" id="bgColors"></div>
+        </div>
+        <label class="upload-row">
+          <input class="hidden-input" type="file" id="bgUpload" accept="image/*">
+          <svg width="26" height="26" viewBox="0 0 24 24" fill="none"><path d="M4 17.5 8.2 13a2 2 0 0 1 2.9 0l1.2 1.3 1.7-2.1a2 2 0 0 1 3.1 0l2.9 3.6" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/><rect x="3" y="4" width="18" height="16" rx="3" stroke="currentColor" stroke-width="1.8"/><circle cx="8.5" cy="8.5" r="1.4" fill="currentColor"/></svg>
+          <span>上传图片</span>
+        </label>
+        <div class="soft-card">
+          <div class="row">
+            <span>纹理填充</span>
+            <button class="toggle on" data-toggle="canvasTexture"><span></span></button>
+          </div>
+          <div class="row">
+            <span>形状</span>
+            <span class="mini-shapes"><span class="ring"></span><span style="font-size:32px">★</span></span>
+          </div>
+          <div class="row">
+            <span>纹理颜色</span>
+            <button class="swatch rainbow" data-rainbow="canvas" aria-label="纹理颜色"></button>
+          </div>
+          <div class="row">
+            <span>大小</span>
+            <div class="range-line"><input type="range" id="canvasTextureSize" min="3" max="18" value="8"><span id="canvasTextureSizeValue">8</span></div>
+          </div>
+          <div class="row">
+            <span>数量</span>
+            <div class="range-line"><input type="range" id="canvasTextureCount" min="0" max="60" value="20"><span id="canvasTextureCountValue">20</span></div>
+          </div>
+        </div>
+        <div class="row" style="margin-top:16px">
+          <span>画布比例</span>
+          <div class="ratio-control">
+            <button class="active" data-ratio="1:1">1:1</button>
+            <button data-ratio="3:4">3:4</button>
+            <button data-ratio="9:16">9:16</button>
+          </div>
+        </div>
+        <div class="row">
+          <span>显示背景</span>
+          <button class="toggle on" data-toggle="showBg"><span></span></button>
+        </div>
+      </div>
+    </section>
+
+    <div class="modal" id="resultModal">
+      <div class="result-sheet">
+        <div class="handle"></div>
+        <button class="close" id="closeModal" aria-label="关闭">
+          <svg width="32" height="32" viewBox="0 0 24 24" fill="none"><path d="m6 6 12 12M18 6 6 18" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg>
+        </button>
+        <div class="success">
+          <svg width="25" height="25" viewBox="0 0 24 24" fill="none"><path d="m5 12 4 4 10-10" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/></svg>
+        </div>
+        <h2>图片已生成</h2>
+        <p>你的专属 I ♥ 值得被收藏</p>
+        <div class="result-preview"><img id="resultImage" alt="生成结果预览"></div>
+        <div class="caption">生成结果预览</div>
+        <div class="modal-actions">
+          <button class="wide-btn dark" id="saveBtn">
+            <svg width="28" height="28" viewBox="0 0 24 24" fill="none"><path d="M12 3v12m0 0 4-4m-4 4-4-4" stroke="currentColor" stroke-width="2.1" stroke-linecap="round" stroke-linejoin="round"/><path d="M5 19h14" stroke="currentColor" stroke-width="2.1" stroke-linecap="round"/></svg>
+            保存到相册
+          </button>
+          <button class="wide-btn" id="noteBtn">
+            <svg width="30" height="30" viewBox="0 0 24 24" fill="none" style="color:var(--pink)"><path d="M12 3v12m0-12 4 4m-4-4-4 4" stroke="currentColor" stroke-width="2.1" stroke-linecap="round" stroke-linejoin="round"/><path d="M5 12v7h14v-7" stroke="currentColor" stroke-width="2.1" stroke-linecap="round" stroke-linejoin="round"/></svg>
+            发布笔记 <span class="tag">小红书</span>
+          </button>
+          <button class="wide-btn" id="editAgain">
+            <svg width="26" height="26" viewBox="0 0 24 24" fill="none"><path d="M9 8H5v-4" stroke="currentColor" stroke-width="2.1" stroke-linecap="round" stroke-linejoin="round"/><path d="M5 8c2.1-2.3 4.5-3.4 7.4-3.1 4.3.4 7.6 4.1 7.6 8.4 0 4.6-3.7 8.3-8.3 8.3-2.5 0-4.7-1.1-6.2-2.8" stroke="currentColor" stroke-width="2.1" stroke-linecap="round"/></svg>
+            重新编辑
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <div class="toast" id="toast"></div>
+  </main>
+
+  <script>
+    const qs = (s, root = document) => root.querySelector(s);
+    const qsa = (s, root = document) => [...root.querySelectorAll(s)];
+
+    const colors = [
+      "rainbow", "#000000", "#ffffff", "#f36aad", "#ffe9a8",
+      "#5dd5b7", "#c9a3ee", "#73d8ea", "#fbff3d"
+    ];
+
+    const symbols = [
+      { id: "heart", label: "爱心", color: "#ff1493" },
+      { id: "star", label: "星星", color: "#ff65b8" },
+      { id: "ban", label: "禁止", color: "#ff3131" },
+      { id: "paw", label: "爪子", color: "#000000" }
+    ];
+
+    const stickerSets = {
+      "推荐": [
+        "素材包/图片素材/贴纸素材/y2k/068-S08-KISS-ME字贴.png",
+        "素材包/图片素材/贴纸素材/y2k/089-S09-粉色水钻爱心.png",
+        "素材包/图片素材/贴纸素材/韩系/02-粉光云朵气泡.png",
+        "素材包/图片素材/贴纸素材/搞怪/004-S01-红色立体蝴蝶结.png"
+      ],
+      "y2k": [
+        "素材包/图片素材/贴纸素材/y2k/001-S03-GIRL字贴.png",
+        "素材包/图片素材/贴纸素材/y2k/069-S08-粉色相机.png",
+        "素材包/图片素材/贴纸素材/y2k/090-S09-粉色直板按键手机.png",
+        "素材包/图片素材/贴纸素材/y2k/078-S08-粉色唇印.png",
+        "素材包/图片素材/贴纸素材/y2k/083-S09-粉色豹纹星星.png"
+      ],
+      "韩系": [
+        "素材包/图片素材/贴纸素材/韩系/04-爱心文件夹.png",
+        "素材包/图片素材/贴纸素材/韩系/06-黑色波点蝴蝶结.png",
+        "素材包/图片素材/贴纸素材/韩系/12-细波点粉色星星.png",
+        "素材包/图片素材/贴纸素材/韩系/028-S16-粉色爱心苹果.png",
+        "素材包/图片素材/贴纸素材/韩系/037-S18-黑白波点幸运草.png"
+      ],
+      "ins": [
+        "素材包/图片素材/贴纸素材/ins/010-S13-粉色莲花.png",
+        "素材包/图片素材/贴纸素材/ins/031-S15-粉色蜻蜓.png",
+        "素材包/图片素材/贴纸素材/ins/034-S15-粉紫虹彩珠.png",
+        "素材包/图片素材/贴纸素材/ins/041-S20-浅粉莲花与叶片.png"
+      ]
+    };
+
+    const initialState = {
+      text: "ME",
+      textColor: "#000000",
+      symbol: "heart",
+      symbolColor: "#ff1493",
+      bgColor: "#ffffff",
+      bgImage: null,
+      ratio: "1:1",
+      textTexture: true,
+      symbolTexture: false,
+      canvasTexture: false,
+      showBg: true,
+      textTextureSize: 8,
+      textTextureCount: 20,
+      canvasTextureSize: 8,
+      canvasTextureCount: 20,
+      selectedStickerId: null,
+      stickers: []
+    };
+
+    let state = structuredClone(initialState);
+    let history = [structuredClone(state)];
+    let future = [];
+    let lastExport = "";
+
+    const artboard = qs("#artboard");
+    const mainWord = qs("#mainWord");
+    const letterI = qs("#letterI");
+    const mainSymbol = qs("#mainSymbol");
+    const stickersLayer = qs("#stickersLayer");
+    const canvasPattern = qs("#canvasPattern");
+
+    function pushHistory() {
+      history.push(structuredClone(state));
+      if (history.length > 40) history.shift();
+      future = [];
+      updateHistoryButtons();
+    }
+
+    function updateHistoryButtons() {
+      qs("#undoBtn").disabled = history.length <= 1;
+      qs("#redoBtn").disabled = future.length === 0;
+    }
+
+    function symbolSvg(type, color) {
+      if (type === "star") {
+        return `<svg class="symbol-svg" viewBox="0 0 100 100"><path fill="${color}" d="M50 6 61.8 36.4 94 38.2 69 59.1 77.3 90.6 50 73 22.7 90.6 31 59.1 6 38.2l32.2-1.8z"/></svg>`;
+      }
+      if (type === "ban") {
+        return `<svg class="symbol-svg" viewBox="0 0 100 100"><circle cx="50" cy="50" r="36" fill="none" stroke="${color}" stroke-width="13"/><path d="M27 27 73 73" stroke="${color}" stroke-width="13" stroke-linecap="round"/></svg>`;
+      }
+      if (type === "paw") {
+        return `<svg class="symbol-svg" viewBox="0 0 100 100"><g fill="${color}"><ellipse cx="28" cy="32" rx="11" ry="16" transform="rotate(-24 28 32)"/><ellipse cx="46" cy="24" rx="11" ry="17"/><ellipse cx="64" cy="29" rx="11" ry="16" transform="rotate(18 64 29)"/><ellipse cx="77" cy="45" rx="10" ry="14" transform="rotate(32 77 45)"/><path d="M21 74c4-18 16-29 30-29s29 13 31 30c1 9-5 15-14 12-6-2-10-5-17-5s-13 4-19 6c-9 2-13-5-11-14z"/></g></svg>`;
+      }
+      return `<svg class="symbol-svg" viewBox="0 0 100 100"><path fill="${color}" d="M50 88S13 60 13 33c0-15 10-24 23-24 8 0 15 4 19 11 4-7 11-11 19-11 13 0 23 9 23 24 0 27-37 55-47 55z"/></svg>`;
+    }
+
+    function makePattern(container, count, size, color, seed) {
+      container.innerHTML = "";
+      const random = mulberry32(seed);
+      for (let i = 0; i < count; i++) {
+        const dot = document.createElement("span");
+        dot.className = "pattern-dot";
+        const s = size * (0.65 + random() * 0.9);
+        dot.style.width = `${s}px`;
+        dot.style.height = `${s}px`;
+        dot.style.left = `${random() * 100}%`;
+        dot.style.top = `${random() * 100}%`;
+        dot.style.background = color;
+        container.appendChild(dot);
+      }
+    }
+
+    function mulberry32(a) {
+      return function() {
+        let t = a += 0x6D2B79F5;
+        t = Math.imul(t ^ t >>> 15, t | 1);
+        t ^= t + Math.imul(t ^ t >>> 7, t | 61);
+        return ((t ^ t >>> 14) >>> 0) / 4294967296;
+      };
+    }
+
+    function render() {
+      mainWord.textContent = state.text || "ME";
+      const scale = Math.min(1, 3.2 / Math.max(2.2, (state.text || "ME").length));
+      mainWord.style.transform = `scale(${scale}, 1)`;
+      letterI.style.setProperty("--text-color", state.textColor);
+      mainWord.style.setProperty("--text-color", state.textColor);
+      mainSymbol.innerHTML = symbolSvg(state.symbol, state.symbolColor);
+      mainSymbol.classList.toggle("selected", qs(".tab.active")?.dataset.tab === "symbol");
+      mainSymbol.style.setProperty("--symbol-color", state.symbolColor);
+
+      artboard.classList.toggle("ratio-34", state.ratio === "3:4");
+      artboard.classList.toggle("ratio-916", state.ratio === "9:16");
+      artboard.style.backgroundColor = state.showBg ? state.bgColor : "transparent";
+      artboard.style.backgroundImage = state.showBg && state.bgImage ? `url("${state.bgImage}")` : "none";
+      artboard.style.backgroundSize = "cover";
+      artboard.style.backgroundPosition = "center";
+
+      if (state.canvasTexture && state.showBg) {
+        makePattern(canvasPattern, state.canvasTextureCount, state.canvasTextureSize, "#ff1493", 24);
+      } else {
+        canvasPattern.innerHTML = "";
+      }
+
+      renderStickers();
+      syncControls();
+    }
+
+    function renderStickers() {
+      stickersLayer.innerHTML = "";
+      state.stickers.forEach(sticker => {
+        const el = document.createElement("button");
+        el.className = `sticker ${state.selectedStickerId === sticker.id ? "selected" : ""}`;
+        el.dataset.id = sticker.id;
+        el.style.left = `${sticker.x}%`;
+        el.style.top = `${sticker.y}%`;
+        el.style.width = `${sticker.size}px`;
+        el.style.height = `${sticker.size}px`;
+        el.style.transform = `translate(-50%, -50%) rotate(${sticker.rotate}deg)`;
+        el.innerHTML = `<img src="${sticker.src}" alt="">`;
+        el.addEventListener("pointerdown", startStickerDrag);
+        stickersLayer.appendChild(el);
+      });
+    }
+
+    function syncControls() {
+      qs("#textInput").value = state.text;
+      qsa(".toggle").forEach(btn => btn.classList.toggle("on", !!state[btn.dataset.toggle]));
+      qs("#textTextureSize").value = state.textTextureSize;
+      qs("#textTextureSizeValue").textContent = state.textTextureSize;
+      qs("#textTextureCount").value = state.textTextureCount;
+      qs("#textTextureCountValue").textContent = state.textTextureCount;
+      qs("#canvasTextureSize").value = state.canvasTextureSize;
+      qs("#canvasTextureSizeValue").textContent = state.canvasTextureSize;
+      qs("#canvasTextureCount").value = state.canvasTextureCount;
+      qs("#canvasTextureCountValue").textContent = state.canvasTextureCount;
+      qsa("[data-ratio]").forEach(btn => btn.classList.toggle("active", btn.dataset.ratio === state.ratio));
+    }
+
+    function renderSwatches(root, active, onPick) {
+      root.innerHTML = "";
+      colors.forEach(c => {
+        const btn = document.createElement("button");
+        btn.className = `swatch ${c === "rainbow" ? "rainbow" : ""} ${active === c ? "active" : ""}`;
+        btn.style.background = c === "rainbow" ? "" : c;
+        btn.addEventListener("click", () => onPick(c === "rainbow" ? "#ff1493" : c));
+        root.appendChild(btn);
+      });
+    }
+
+    function renderPalettes() {
+      renderSwatches(qs("#textColors"), state.textColor, c => {
+        state.textColor = c;
+        pushHistory();
+        render();
+      });
+      renderSwatches(qs("#symbolColors"), state.symbolColor, c => {
+        state.symbolColor = c;
+        pushHistory();
+        render();
+      });
+      renderSwatches(qs("#bgColors"), state.bgColor, c => {
+        state.bgColor = c;
+        state.showBg = true;
+        pushHistory();
+        render();
+      });
+    }
+
+    function renderSymbolGrid() {
+      const root = qs("#symbolGrid");
+      root.innerHTML = "";
+      symbols.forEach(item => {
+        const btn = document.createElement("button");
+        btn.className = `tile ${state.symbol === item.id ? "selected" : ""}`;
+        btn.innerHTML = symbolSvg(item.id, item.color);
+        btn.addEventListener("click", () => {
+          state.symbol = item.id;
+          if (item.id === "paw" || item.id === "ban") state.symbolColor = item.color;
+          pushHistory();
+          renderSymbolGrid();
+          renderPalettes();
+          render();
+        });
+        root.appendChild(btn);
+      });
+    }
+
+    function renderStickerGrid(cat = "推荐") {
+      const root = qs("#stickerGrid");
+      root.innerHTML = "";
+      const importTile = document.createElement("label");
+      importTile.className = "tile";
+      importTile.innerHTML = `<input class="hidden-input" type="file" accept="image/*"><span><span class="plus">＋</span><br><small>导入</small></span>`;
+      importTile.querySelector("input").addEventListener("change", event => {
+        const file = event.target.files[0];
+        if (file) addSticker(URL.createObjectURL(file));
+      });
+      root.appendChild(importTile);
+
+      (stickerSets[cat] || stickerSets["推荐"]).forEach(src => {
+        const btn = document.createElement("button");
+        btn.className = "tile";
+        btn.innerHTML = `<img src="${src}" alt="">`;
+        btn.addEventListener("click", () => addSticker(src));
+        root.appendChild(btn);
+      });
+    }
+
+    function addSticker(src) {
+      const id = `sticker-${Date.now()}-${Math.round(Math.random() * 999)}`;
+      state.stickers.push({
+        id,
+        src,
+        x: 78,
+        y: 14,
+        size: 62,
+        rotate: Math.round(-12 + Math.random() * 24)
+      });
+      state.selectedStickerId = id;
+      pushHistory();
+      render();
+    }
+
+    function startStickerDrag(event) {
+      event.preventDefault();
+      const id = event.currentTarget.dataset.id;
+      state.selectedStickerId = id;
+      render();
+      const rect = artboard.getBoundingClientRect();
+      const move = e => {
+        const sticker = state.stickers.find(s => s.id === id);
+        if (!sticker) return;
+        sticker.x = Math.max(2, Math.min(98, ((e.clientX - rect.left) / rect.width) * 100));
+        sticker.y = Math.max(2, Math.min(98, ((e.clientY - rect.top) / rect.height) * 100));
+        renderStickers();
+      };
+      const up = () => {
+        window.removeEventListener("pointermove", move);
+        window.removeEventListener("pointerup", up);
+        pushHistory();
+      };
+      window.addEventListener("pointermove", move);
+      window.addEventListener("pointerup", up, { once: true });
+    }
+
+    mainSymbol.addEventListener("click", () => {
+      state.selectedStickerId = null;
+      mainSymbol.classList.add("selected");
+      renderStickers();
+    });
+
+    qsa(".tab").forEach(tab => {
+      tab.addEventListener("click", () => {
+        qsa(".tab").forEach(t => t.classList.remove("active"));
+        qsa(".panel").forEach(p => p.classList.remove("active"));
+        tab.classList.add("active");
+        qs(`#panel-${tab.dataset.tab}`).classList.add("active");
+        render();
+      });
+    });
+
+    qs("#textInput").addEventListener("input", event => {
+      state.text = event.target.value.toUpperCase() || "ME";
+      render();
+    });
+    qs("#textInput").addEventListener("change", () => pushHistory());
+
+    qsa(".toggle").forEach(btn => {
+      btn.addEventListener("click", () => {
+        state[btn.dataset.toggle] = !state[btn.dataset.toggle];
+        pushHistory();
+        render();
+      });
+    });
+
+    ["textTextureSize", "textTextureCount", "canvasTextureSize", "canvasTextureCount"].forEach(id => {
+      qs(`#${id}`).addEventListener("input", e => {
+        state[id] = Number(e.target.value);
+        render();
+      });
+      qs(`#${id}`).addEventListener("change", () => pushHistory());
+    });
+
+    qsa("[data-ratio]").forEach(btn => {
+      btn.addEventListener("click", () => {
+        state.ratio = btn.dataset.ratio;
+        pushHistory();
+        render();
+      });
+    });
+
+    qsa("[data-sticker-cat]").forEach(btn => {
+      btn.addEventListener("click", () => {
+        qsa("[data-sticker-cat]").forEach(b => b.classList.remove("active"));
+        btn.classList.add("active");
+        renderStickerGrid(btn.dataset.stickerCat);
+      });
+    });
+
+    qs("#deleteSticker").addEventListener("click", () => {
+      if (!state.selectedStickerId) {
+        toast("先点选一个贴纸");
+        return;
+      }
+      state.stickers = state.stickers.filter(s => s.id !== state.selectedStickerId);
+      state.selectedStickerId = null;
+      pushHistory();
+      render();
+    });
+
+    qs("#clearBtn").addEventListener("click", () => {
+      state = structuredClone(initialState);
+      pushHistory();
+      renderAll();
+    });
+
+    qs("#undoBtn").addEventListener("click", () => {
+      if (history.length <= 1) return;
+      future.push(history.pop());
+      state = structuredClone(history[history.length - 1]);
+      renderAll();
+      updateHistoryButtons();
+    });
+
+    qs("#redoBtn").addEventListener("click", () => {
+      if (!future.length) return;
+      const next = future.pop();
+      history.push(structuredClone(next));
+      state = structuredClone(next);
+      renderAll();
+      updateHistoryButtons();
+    });
+
+    qs("#bgUpload").addEventListener("change", event => {
+      const file = event.target.files[0];
+      if (!file) return;
+      state.bgImage = URL.createObjectURL(file);
+      state.showBg = true;
+      pushHistory();
+      render();
+    });
+
+    qs("#symbolUpload").addEventListener("change", event => {
+      const file = event.target.files[0];
+      if (!file) return;
+      toast("已读取图片，当前原型先保留符号形状预览");
+    });
+
+    qs("#exportBtn").addEventListener("click", async () => {
+      lastExport = await exportImage();
+      qs("#resultImage").src = lastExport;
+      qs("#resultModal").classList.add("show");
+    });
+
+    qs("#closeModal").addEventListener("click", closeModal);
+    qs("#editAgain").addEventListener("click", closeModal);
+
+    qs("#saveBtn").addEventListener("click", () => {
+      if (!lastExport) return;
+      const link = document.createElement("a");
+      link.href = lastExport;
+      link.download = `i-love-${(state.text || "me").toLowerCase()}-${Date.now()}.png`;
+      link.click();
+      toast("图片已开始下载");
+    });
+
+    qs("#noteBtn").addEventListener("click", async () => {
+      const text = `我的专属 I ♥ ${state.text || "ME"} 生成好了，复古 Y2K 感狠狠爱住。`;
+      try {
+        await navigator.clipboard.writeText(text);
+        toast("小红书文案已复制");
+      } catch {
+        toast(text);
+      }
+    });
+
+    function closeModal() {
+      qs("#resultModal").classList.remove("show");
+    }
+
+    function toast(text) {
+      const el = qs("#toast");
+      el.textContent = text;
+      el.classList.add("show");
+      clearTimeout(toast.timer);
+      toast.timer = setTimeout(() => el.classList.remove("show"), 1800);
+    }
+
+    function renderAll() {
+      renderPalettes();
+      renderSymbolGrid();
+      renderStickerGrid(qs("[data-sticker-cat].active")?.dataset.stickerCat || "推荐");
+      render();
+    }
+
+    async function exportImage() {
+      await document.fonts.ready;
+      const canvas = document.createElement("canvas");
+      const ratio = state.ratio === "3:4" ? [3, 4] : state.ratio === "9:16" ? [9, 16] : [1, 1];
+      const base = 1200;
+      canvas.width = base;
+      canvas.height = Math.round(base * ratio[1] / ratio[0]);
+      const ctx = canvas.getContext("2d");
+      ctx.fillStyle = state.showBg ? state.bgColor : "#ffffff";
+      ctx.fillRect(0, 0, canvas.width, canvas.height);
+      if (state.bgImage && state.showBg) {
+        const img = await loadImage(state.bgImage);
+        drawCover(ctx, img, 0, 0, canvas.width, canvas.height);
+      }
+      if (state.canvasTexture && state.showBg) {
+        drawPattern(ctx, state.canvasTextureCount, state.canvasTextureSize * 3, "#ff1493", canvas.width, canvas.height, 24);
+      }
+
+      const box = {
+        x: canvas.width * .18,
+        y: canvas.height * (state.ratio === "9:16" ? .22 : .20),
+        w: canvas.width * .64,
+        h: canvas.height * .54
+      };
+      ctx.fillStyle = state.textColor;
+      ctx.textBaseline = "top";
+      ctx.font = `900 ${Math.min(canvas.width * .32, box.h * .42)}px CooperLocal, Georgia, serif`;
+      ctx.fillText("I", box.x, box.y);
+      const mainSize = Math.min(canvas.width * .36, box.h * .45);
+      ctx.font = `900 ${mainSize}px CooperLocal, Georgia, serif`;
+      const word = state.text || "ME";
+      const measured = ctx.measureText(word).width;
+      const maxWidth = canvas.width * .72;
+      const scale = Math.min(1, maxWidth / measured);
+      ctx.save();
+      ctx.translate(box.x - 4, box.y + box.h * .47);
+      ctx.scale(scale, 1);
+      ctx.fillText(word, 0, 0);
+      ctx.restore();
+
+      drawSymbol(ctx, state.symbol, state.symbolColor, canvas.width * .49, box.y + box.h * .02, canvas.width * .32);
+
+      for (const sticker of state.stickers) {
+        try {
+          const img = await loadImage(sticker.src);
+          const x = canvas.width * sticker.x / 100;
+          const y = canvas.height * sticker.y / 100;
+          const s = sticker.size * (canvas.width / artboard.clientWidth);
+          ctx.save();
+          ctx.translate(x, y);
+          ctx.rotate(sticker.rotate * Math.PI / 180);
+          ctx.drawImage(img, -s / 2, -s / 2, s, s);
+          ctx.restore();
+        } catch {}
+      }
+      return canvas.toDataURL("image/png");
+    }
+
+    function drawPattern(ctx, count, size, color, w, h, seed) {
+      const random = mulberry32(seed);
+      ctx.save();
+      ctx.globalAlpha = .18;
+      ctx.fillStyle = color;
+      for (let i = 0; i < count; i++) {
+        const s = size * (.65 + random() * .9);
+        ctx.beginPath();
+        ctx.arc(random() * w, random() * h, s, 0, Math.PI * 2);
+        ctx.fill();
+      }
+      ctx.restore();
+    }
+
+    function drawSymbol(ctx, type, color, x, y, size) {
+      ctx.save();
+      ctx.fillStyle = color;
+      ctx.strokeStyle = color;
+      ctx.lineCap = "round";
+      ctx.lineJoin = "round";
+      ctx.translate(x, y);
+      ctx.scale(size / 100, size / 100);
+      if (type === "star") {
+        path(ctx, "M50 6 61.8 36.4 94 38.2 69 59.1 77.3 90.6 50 73 22.7 90.6 31 59.1 6 38.2l32.2-1.8z");
+      } else if (type === "ban") {
+        ctx.lineWidth = 13;
+        ctx.beginPath();
+        ctx.arc(50, 50, 36, 0, Math.PI * 2);
+        ctx.stroke();
+        ctx.beginPath();
+        ctx.moveTo(27, 27);
+        ctx.lineTo(73, 73);
+        ctx.stroke();
+      } else if (type === "paw") {
+        ctx.font = "82px Arial";
+        ctx.fillText("●", 11, 12);
+      } else {
+        path(ctx, "M50 88S13 60 13 33c0-15 10-24 23-24 8 0 15 4 19 11 4-7 11-11 19-11 13 0 23 9 23 24 0 27-37 55-47 55z");
+      }
+      ctx.restore();
+    }
+
+    function path(ctx, d) {
+      const p = new Path2D(d);
+      ctx.fill(p);
+    }
+
+    function drawCover(ctx, img, x, y, w, h) {
+      const scale = Math.max(w / img.width, h / img.height);
+      const iw = img.width * scale;
+      const ih = img.height * scale;
+      ctx.drawImage(img, x + (w - iw) / 2, y + (h - ih) / 2, iw, ih);
+    }
+
+    function loadImage(src) {
+      return new Promise((resolve, reject) => {
+        const img = new Image();
+        img.onload = () => resolve(img);
+        img.onerror = reject;
+        img.src = src;
+      });
+    }
+
+    renderAll();
+    updateHistoryButtons();
+  </script>
+</body>
+</html>
