@@ -70,8 +70,10 @@ async function exportNativeDesignCanvas() {
     ctx.scale(1080 / metrics.w, 1080 / metrics.w);
     ctx.font = "900 " + box.fs + "px CooperStdBlack, Georgia, serif";
     ctx.fillStyle = state.textColor;
+    ctx.textAlign = "left";
     let x = box.x - metrics.x;
-    if (box === layout.me) x = (metrics.w - ctx.measureText(text).width - (text.length - 1) * spacing) / 2;
+    const advance = Array.from(text).reduce((width, char) => width + ctx.measureText(char).width, 0);
+    if (box === layout.me) x = (metrics.w - advance - (text.length - 1) * spacing) / 2;
     const sample = ctx.measureText("Mg");
     const baseline = box.y - metrics.y + (sample.fontBoundingBoxAscent || box.fs * 0.83);
     for (const char of text) {

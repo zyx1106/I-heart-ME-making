@@ -148,6 +148,8 @@
       margin: -20px;
       font-family: CooperStdBlack, Georgia, serif;
       font-weight: 900;
+      font-kerning: none;
+      font-variant-ligatures: none;
       color: #000;
       line-height: 1;
       white-space: nowrap;
@@ -239,6 +241,7 @@
       background-image: url("./assets/sticker-controls/scale.svg");
     }
     .sticker-handle.flip { background-image: url("./assets/sticker-controls/flip.svg"); }
+    .sticker-handle.copy { background-image: url("./assets/sticker-controls/copy.svg"); }
     .sticker-controls { position: absolute; left: 0; top: 0; z-index: 5; pointer-events: none; }
     .sticker-controls .sticker-handle { right: auto; bottom: auto; pointer-events: auto; transform: translate(-50%, -50%); }
 
@@ -766,7 +769,7 @@
 
   <script src="./designer-color-picker.js?v=20261019-4"></script>
   <script src="./sticker-catalog.js?v=20261019-2"></script>
-  <script src="./minitool-export.js?v=20261019-1"></script>
+  <script src="./minitool-export.js?v=20261019-12"></script>
   <script>
     const FIGMA = {
       fileKey: "yoTTC6Cs6jEJHyRaSgIyDq",
@@ -986,7 +989,8 @@
       });
       content.style.height = `${contentBottom}px`;
       scroll.appendChild(content); editor.appendChild(tabbar); editor.appendChild(scroll); frame.appendChild(editor);
-      if (state.active !== "sticker") {
+      if (state.active === "sticker") bindStickerCanvasGestures(scene, canvasMetrics());
+      else {
         const photoTarget = state.active === "canvas" && state.bgImage ? "bg" : state.symbolImage ? "symbol" : state.bgImage ? "bg" : null;
         if (photoTarget) bindPhotoGesture(scene, canvasMetrics(), photoTarget);
       }
@@ -1124,8 +1128,7 @@
       let spacing = metrics.w * state.textSpacing / 1000;
       const measure = document.createElement("canvas").getContext("2d");
       measure.font = `900 ${fs}px CooperStdBlack, Georgia, serif`;
-      const measured = measure.measureText(state.text);
-      const glyphWidth = Math.max(measured.width, (measured.actualBoundingBoxLeft || 0) + (measured.actualBoundingBoxRight || 0));
+      const glyphWidth = Array.from(state.text).reduce((width, char) => width + measure.measureText(char).width, 0);
       const safeWidth = metrics.w * 0.86;
       const meY = Math.max(topY + metrics.w * spec.y, topY + metrics.w * 0.247 + metrics.w * 0.045);
       const fitScale = Math.min(1, safeWidth / Math.max(1, glyphWidth), metrics.w * (1 - 0.264 - 0.292 - 0.06) / Math.max(1, fs * 1.3));
@@ -1208,13 +1211,12 @@
         el.style.setProperty("--scale", sticker.scale);
         el.style.setProperty("--rot", `${sticker.rotation}deg`);
         el.innerHTML = `<img src="${sticker.src}" alt="">`;
-        el.onpointerdown = event => startStickerGesture(event, sticker.id, "move", metrics);
         coordinates.appendChild(el);
         if (el.classList.contains("active")) {
           const controls = document.createElement("div");
           controls.className = "sticker-controls";
           controls.dataset.stickerControls = String(sticker.id);
-          [["rotate", "↻", "旋转贴纸"], ["scale", "⤢", "缩放贴纸"], ["flip", "", "水平翻转贴纸"]].forEach(([mode, label, title]) => {
+          [["rotate", "↻", "旋转贴纸"], ["scale", "⤢", "缩放贴纸"], ["flip", "", "水平翻转贴纸"], ["copy", "", "复制贴纸"]].forEach(([mode, label, title]) => {
             const handle = document.createElement("button");
             handle.className = `sticker-handle ${mode}`;
             handle.title = title;
@@ -1222,12 +1224,16 @@
             if (mode === "flip") handle.setAttribute("aria-pressed", String(!!sticker.flipX));
             handle.onpointerdown = event => {
               event.stopPropagation();
-              if (mode === "flip") return;
+              if (mode === "flip" || mode === "copy") return;
               startStickerGesture(event, sticker.id, mode, metrics);
             };
             if (mode === "flip") handle.onclick = event => {
               event.stopPropagation();
               commitChange(() => { sticker.flipX = !sticker.flipX; });
+            };
+            if (mode === "copy") handle.onclick = event => {
+              event.stopPropagation();
+              commitChange(() => duplicateSticker(sticker, metrics));
             };
             controls.appendChild(handle);
           });
@@ -1240,32 +1246,94 @@
     function stickerHandlePositions(sticker, metrics) {
       const pos = stickerPosition(sticker, metrics);
       const angle = sticker.rotation * Math.PI / 180;
-      const corner = sign => ({
-        x: clamp(pos.x + (Math.cos(angle) * pos.w / 2 - Math.sin(angle) * sign * pos.h / 2) * sticker.scale, metrics.x + 22, metrics.x + metrics.w - 22),
-        y: clamp(pos.y + (Math.sin(angle) * pos.w / 2 + Math.cos(angle) * sign * pos.h / 2) * sticker.scale, metrics.y + 22, metrics.y + metrics.h - 22)
-      });
-      const rotate = corner(-1), scale = corner(1);
-      if (Math.hypot(rotate.x - scale.x, rotate.y - scale.y) < 48) {
-        rotate.y = clamp(scale.y - 48, metrics.y + 22, metrics.y + metrics.h - 22);
-        if (Math.hypot(rotate.x - scale.x, rotate.y - scale.y) < 48) {
-          scale.y = clamp(rotate.y + 48, metrics.y + 22, metrics.y + metrics.h - 22);
-        }
-      }
-      const flip = {
-        x: clamp(pos.x + (-Math.cos(angle) * pos.w / 2 - Math.sin(angle) * pos.h / 2) * sticker.scale, metrics.x + 22, metrics.x + metrics.w - 22),
-        y: clamp(pos.y + (-Math.sin(angle) * pos.w / 2 + Math.cos(angle) * pos.h / 2) * sticker.scale, metrics.y + 22, metrics.y + metrics.h - 22)
+      const halfWidth = Math.min((metrics.w - 44) / 2, Math.max(24, (Math.abs(Math.cos(angle)) * pos.w + Math.abs(Math.sin(angle)) * pos.h) * sticker.scale / 2));
+      const halfHeight = Math.min((metrics.h - 44) / 2, Math.max(24, (Math.abs(Math.sin(angle)) * pos.w + Math.abs(Math.cos(angle)) * pos.h) * sticker.scale / 2));
+      const centerX = clamp(pos.x, metrics.x + 22 + halfWidth, metrics.x + metrics.w - 22 - halfWidth);
+      const centerY = clamp(pos.y, metrics.y + 22 + halfHeight, metrics.y + metrics.h - 22 - halfHeight);
+      const left = clamp(centerX - halfWidth, metrics.x + 22, metrics.x + metrics.w - 22);
+      const right = clamp(centerX + halfWidth, metrics.x + 22, metrics.x + metrics.w - 22);
+      const top = clamp(centerY - halfHeight, metrics.y + 22, metrics.y + metrics.h - 22);
+      const bottom = clamp(centerY + halfHeight, metrics.y + 22, metrics.y + metrics.h - 22);
+      return {
+        rotate: { x: right, y: top },
+        scale: { x: right, y: bottom },
+        flip: { x: left, y: bottom },
+        copy: { x: left, y: top }
       };
-      if ([rotate, scale].some(point => Math.hypot(point.x - flip.x, point.y - flip.y) < 48)) {
-        const candidates = [
-          { x: metrics.x + 22, y: metrics.y + metrics.h - 22 },
-          { x: metrics.x + 22, y: metrics.y + 22 },
-          { x: metrics.x + metrics.w - 22, y: metrics.y + 22 },
-          { x: metrics.x + metrics.w - 22, y: metrics.y + metrics.h - 22 }
-        ];
-        candidates.sort((a, b) => Math.min(...[rotate, scale].map(p => Math.hypot(p.x - b.x, p.y - b.y))) - Math.min(...[rotate, scale].map(p => Math.hypot(p.x - a.x, p.y - a.y))));
-        flip.x = candidates[0].x; flip.y = candidates[0].y;
-      }
-      return { rotate, scale, flip };
+    }
+
+    function duplicateSticker(sticker, metrics) {
+      const copy = Object.assign({}, sticker, { id: state.nextStickerId++ });
+      const pos = stickerPosition(sticker, metrics);
+      copy.gx += (pos.x + 16 > metrics.x + metrics.w - 16 ? -16 : 16) / metrics.w;
+      copy.gy += (pos.y + 16 > metrics.y + metrics.h - 16 ? -16 : 16) / metrics.w;
+      state.stickers.push(copy);
+      state.activeStickerId = copy.id;
+      return copy;
+    }
+
+    function bindStickerCanvasGestures(scene, metrics) {
+      scene.style.touchAction = "none";
+      const pointers = new Map();
+      let session = null;
+      let start = null;
+      const distance = () => {
+        const points = Array.from(pointers.values());
+        return points.length > 1 ? Math.hypot(points[0].x - points[1].x, points[0].y - points[1].y) : 0;
+      };
+      const selected = () => session && state.stickers.find(item => item.id === session.id);
+      const reset = () => {
+        const point = Array.from(pointers.values())[0];
+        const sticker = selected();
+        start = { x: point.x, y: point.y, distance: distance(), scale: sticker ? sticker.scale : 1, gx: sticker ? sticker.gx : 0, gy: sticker ? sticker.gy : 0 };
+      };
+      scene.onpointerdown = event => {
+        if (event.target.closest(".sticker-handle")) return;
+        const box = scene.getBoundingClientRect();
+        const screenScale = box.width / 390;
+        const x = (event.clientX - box.left) / screenScale, y = (event.clientY - box.top) / screenScale;
+        if (x < metrics.x || x > metrics.x + metrics.w || y < metrics.y || y > metrics.y + metrics.h) return;
+        event.preventDefault();
+        if (!session) {
+          const hit = event.target.closest("[data-sticker-id]");
+          if (hit) state.activeStickerId = Number(hit.dataset.stickerId);
+          session = { id: state.activeStickerId, move: !!hit, pinched: false, changed: false, before: snapshotState() };
+        }
+        pointers.set(event.pointerId, { x: event.clientX, y: event.clientY });
+        if (scene.setPointerCapture) scene.setPointerCapture(event.pointerId);
+        if (pointers.size > 1) session.pinched = true;
+        reset();
+      };
+      scene.onpointermove = event => {
+        if (!pointers.has(event.pointerId)) return;
+        event.preventDefault();
+        pointers.set(event.pointerId, { x: event.clientX, y: event.clientY });
+        const sticker = selected();
+        if (!sticker) return;
+        if (pointers.size > 1) {
+          sticker.scale = Math.max(0.02, start.scale * distance() / Math.max(1, start.distance));
+          session.changed = true;
+        } else if (session.move && !session.pinched) {
+          const screenScale = scene.getBoundingClientRect().width / 390;
+          sticker.gx = start.gx + (event.clientX - start.x) / screenScale / metrics.w;
+          sticker.gy = start.gy + (event.clientY - start.y) / screenScale / metrics.w;
+          session.changed = true;
+        }
+        updateStickerElement(sticker, metrics);
+      };
+      const end = event => {
+        if (!pointers.has(event.pointerId)) return;
+        pointers.delete(event.pointerId);
+        if (pointers.size) { reset(); return; }
+        if (event.type !== "pointercancel" && !session.move && !session.pinched) state.activeStickerId = null;
+        if (session.changed && session.before !== snapshotState()) {
+          history.past.push(session.before);
+          history.future = [];
+        }
+        session = null;
+        render();
+      };
+      scene.onpointerup = scene.onpointercancel = end;
     }
 
     function normalizeSticker(sticker, metrics) {
@@ -1374,7 +1442,7 @@
       const controls = frame.querySelector(`[data-sticker-controls="${sticker.id}"]`);
       if (controls) {
         const positions = stickerHandlePositions(sticker, metrics);
-        ["rotate", "scale", "flip"].forEach(mode => {
+        ["rotate", "scale", "flip", "copy"].forEach(mode => {
           const handle = controls.querySelector(`.${mode}`);
           handle.style.left = `${positions[mode].x}px`;
           handle.style.top = `${positions[mode].y}px`;
@@ -1492,7 +1560,7 @@
         composing = false;
         const before = compositionBefore || snapshotState();
         const cleaned = cleanMainText(raw);
-        if (cleaned !== raw) toast(/[\u3400-\u9fff\uf900-\ufaff]/.test(raw) ? "无法输入中文" : "仅支持英文字母和标点符号");
+        if (cleaned !== raw) toast(/[\u3400-\u9fff\uf900-\ufaff]/.test(raw) ? "无法输入中文" : "仅支持英文字母、数字和标点符号");
         state.text = cleaned;
         if (input.value !== cleaned) input.value = cleaned;
         if (before !== snapshotState()) {
@@ -1516,7 +1584,7 @@
     }
 
     function cleanMainText(value) {
-      return Array.from(value).filter(char => /[A-Za-z\x20-\x2f\x3a-\x40\x5b-\x60\x7b-\x7e，。！？；：、（）【】《》〈〉「」『』‘’“”…—·]/.test(char)).slice(0, 7).join("");
+      return Array.from(value).filter(char => /[A-Za-z0-9\x20-\x2f\x3a-\x40\x5b-\x60\x7b-\x7e，。！？；：、（）【】《》〈〉「」『』‘’“”…—·]/.test(char)).slice(0, 7).join("");
     }
 
     function renderTypographySlider(label, key, min, max, y) {
@@ -1616,7 +1684,7 @@
         if (cell?.import) {
           tile.classList.add("sticker-import");
           tile.setAttribute("aria-label", "导入贴纸");
-          tile.innerHTML = `<div style="font-size:28px;color:#7c7c7c">+</div><small style="font-size:8px;color:#96969b;margin-top:-12px">导入</small>`;
+          tile.innerHTML = `<span style="font-size:28px;line-height:1;color:#7c7c7c" aria-hidden="true">+</span>`;
           tile.onclick = () => stickerInput.click();
         } else if (cell) {
           tile.setAttribute("aria-label", cell.split("/").pop().replace(/\.(png|webp)$/, ""));
@@ -2255,28 +2323,28 @@
       }, "abs export-preview", "transparent");
       preview.style.overflow = "hidden";
       preview.style.pointerEvents = "none";
-      const scene = document.createElement("div");
-      scene.style.position = "absolute";
-      scene.style.width = `${metrics.w}px`;
-      scene.style.height = `${metrics.h}px`;
-      scene.style.transformOrigin = "top left";
-      scene.style.transform = `scale(${previewScale})`;
-      // Reuse the rendered artwork so preview and editor share every visual layer.
-      const layers = document.createElement("div");
-      layers.style.position = "absolute";
-      layers.style.left = `${-metrics.x}px`;
-      layers.style.top = `${-metrics.y}px`;
-      document.getElementById("previewScene").querySelectorAll(":scope > .canvas, :scope > .mark-i, :scope > .heart-large, :scope > .mark-me, :scope > .sticker-clip").forEach(source => {
-        const copy = source.cloneNode(true);
-        copy.classList.remove("active");
-        copy.querySelectorAll(".active").forEach(child => child.classList.remove("active"));
-        copy.querySelectorAll(".sticker-handle").forEach(handle => handle.remove());
-        copy.removeAttribute("id");
-        layers.appendChild(copy);
-      });
-      scene.appendChild(layers);
-      preview.appendChild(scene);
+      preview.textContent = "正在生成…";
+      preview.style.display = "flex";
+      preview.style.alignItems = "center";
+      preview.style.justifyContent = "center";
+      preview.style.color = "#96969b";
       sheet.appendChild(preview);
+      const previewKey = snapshotState();
+      prepareMiniToolImage().then(data => {
+        if (!state.modalOpen || preview.parentNode !== sheet || snapshotState() !== previewKey) return;
+        const image = document.createElement("img");
+        image.alt = "生成结果预览";
+        image.style.width = "100%";
+        image.style.height = "100%";
+        image.style.objectFit = "contain";
+        image.src = data;
+        preview.textContent = "";
+        preview.appendChild(image);
+      }).catch(error => {
+        if (preview.parentNode !== sheet) return;
+        preview.textContent = "图片生成失败，请重新导出";
+        console.error("Export preview failed", error);
+      });
       sheet.appendChild(txt({ x: 154, y: 393, w: 66, h: 15 }, "生成结果预览", "fig-text", { fs: 11, color: "#99999f", align: "center" }));
       const save = rect({ x: 22, y: 426, w: 330, h: 50 }, "round modal-action save", "#171717", 25);
       save.innerHTML = `<svg class="modal-icon" viewBox="0 0 24 24" fill="none" aria-hidden="true">
@@ -2287,11 +2355,10 @@
         if (save.dataset.saving) return;
         save.dataset.saving = "true";
         try {
-          await document.fonts.ready;
-          await Promise.all([...preview.querySelectorAll("img")].map(img => img.decode()));
-          const canvas = await exportDesignCanvas();
-          const blob = await new Promise(resolve => canvas.toBlob(resolve, "image/png"));
-          if (!blob) throw new Error("PNG generation failed");
+          const data = await prepareMiniToolImage();
+          const binary = atob(data.split(",")[1]);
+          const bytes = Uint8Array.from(binary, char => char.charCodeAt(0));
+          const blob = new Blob([bytes], { type: "image/png" });
           const url = URL.createObjectURL(blob);
           const link = document.createElement("a");
           link.href = url;
@@ -2318,7 +2385,6 @@
       edit.innerHTML = `<b class="modal-label">重新编辑</b>`;
       edit.onclick = () => { state.modalOpen = false; renderModal(); };
       sheet.appendChild(edit);
-      if (window.xhs && window.xhs.miniTool) prepareMiniToolImage().catch(error => console.warn("Export preparation failed", error.message));
     }
 
     async function publishCurrentDesign() {
