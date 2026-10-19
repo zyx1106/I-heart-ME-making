@@ -11,7 +11,7 @@ html = html.replace(/<script>[\s\S]*?<\/script>/, '<script src="./app.js"></scri
 html = html.replace(/\.\/designer-color-picker\.js\?v=[^"\s]+/, './designer-color-picker.js');
 html = html.replace('素材包/英文字体-Corben/CooperBlackStd-3.otf', './assets/cooper.woff').replace('format("opentype")', 'format("woff")');
 js = js.replace(/    async function exportDesignCanvas\(\)[\s\S]*?    function toast\(/, '    async function exportDesignCanvas() { return exportNativeDesignCanvas(); }\n    function toast(');
-html = html.replace('./minitool-export.js?v=20261019-1', './minitool-export.js');
+html = html.replace(/\.\/minitool-export\.js\?v=[^"\s]+/, './minitool-export.js');
 js = js.replace(/      save.onclick = async \(\) => \{[\s\S]*?      sheet.appendChild\(save\);/, '      save.onclick = () => deliverMiniToolImage("save");\n      sheet.appendChild(save);');
 js = js.replace('note.onclick = () => toast("已复制小红书发布文案");', 'note.onclick = () => deliverMiniToolImage("post");');
 js = js.replace(/const \{\s*active,\s*colorPicker,\s*modalOpen,\s*\.\.\.rest\s*\} = state;/, 'const rest = Object.assign({}, state); delete rest.active; delete rest.colorPicker; delete rest.modalOpen;');
@@ -55,6 +55,6 @@ fs.writeFileSync(path.join(out, 'app.js'), js);
 fs.copyFileSync('designer-color-picker.js', path.join(out, 'designer-color-picker.js'));
 fs.copyFileSync('minitool-export.js', path.join(out, 'minitool-export.js'));
 fs.mkdirSync(path.join(out, 'assets/sticker-controls'), { recursive: true });
-for (const name of ['rotate', 'scale', 'flip']) fs.copyFileSync('assets/sticker-controls/' + name + '.svg', path.join(out, 'assets/sticker-controls', name + '.svg'));
+for (const name of ['rotate', 'scale', 'flip', 'copy']) fs.copyFileSync('assets/sticker-controls/' + name + '.svg', path.join(out, 'assets/sticker-controls', name + '.svg'));
 fs.writeFileSync('/tmp/minitool-assets.json', JSON.stringify(assets));
 console.log('Prepared', assets.length, 'referenced stickers');

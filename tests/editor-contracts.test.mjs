@@ -121,7 +121,8 @@ for (const ratio of ['1:1', '3:4', '9:16']) {
 assert.ok(html.indexOf('      fit();\n      scroll.scrollTop = scrollTop;') > 0, 'Restore scroll only after fitting the editor viewport');
 vm.runInContext(functionSource('cleanMainText'), context);
 assert.equal(context.cleanMainText('Abc!?'), 'Abc!?');
-assert.equal(context.cleanMainText('a中文12😀B!'), 'aB!');
+assert.equal(context.cleanMainText('a中文12😀B!'), 'a12B!');
+assert.equal(context.cleanMainText('I2026!?'), 'I2026!?');
 assert.equal(context.cleanMainText('abcdefgh'), 'abcdefg');
 let field;
 const messages = [];
