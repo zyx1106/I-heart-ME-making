@@ -412,6 +412,21 @@
     }
     .sticker-grid > .tile.active { border-color: #ff1687; }
     .sticker-grid > .sticker-import { flex-direction: column; }
+    .sticker-grid > .tile[aria-busy="true"] { position: relative; }
+    .sticker-grid > .tile[aria-busy="true"]::after {
+      content: "";
+      position: absolute;
+      width: 14px;
+      height: 14px;
+      border: 2px solid #dedee4;
+      border-top-color: #96969b;
+      border-radius: 50%;
+      animation: sticker-loading 1s linear infinite;
+    }
+    @keyframes sticker-loading { to { transform: rotate(360deg); } }
+    @media (prefers-reduced-motion: reduce) {
+      .sticker-grid > .tile[aria-busy="true"]::after { animation: none; }
+    }
 
     .color-popover {
       position: fixed;
@@ -713,8 +728,6 @@
     }
     .toast.show { opacity: 1; }
     .color-popover.designer-picker { top: auto; bottom: 16px; transform: translateX(-50%); width: calc(100vw - 24px); max-width: 390px; max-height: 85vh; overflow-y: auto; background: #f5f5f7; color: #19191b; padding: 18px; border: 1px solid #fff; }
-    .picker-header { display: flex; justify-content: center; align-items: center; position: relative; height: 36px; margin-bottom: 14px; }
-    .picker-close { position: absolute; right: 0; width: 36px; height: 36px; font-size: 28px; background: transparent; }
     .picker-tabs { display: flex; background: #e5e5e9; border-radius: 8px; padding: 3px; margin-bottom: 16px; }
     .picker-tabs button { flex: 1; height: 34px; background: transparent; border-radius: 6px; font-size: 14px; }
     .picker-tabs button.active { background: #fff; }
@@ -726,8 +739,9 @@
     .picker-marker { pointer-events: none; position: absolute; width: 22px; height: 22px; border: 3px solid #fff; border-radius: 50%; transform: translate(-50%, -50%); left: 50%; top: 50%; box-shadow: 0 0 2px #444; }
     .picker-footer { border-top: 1px solid #dedee4; padding-top: 12px; margin-top: 16px; }
     .picker-sample { width: 44px; height: 44px; border-radius: 6px; float: left; margin-right: 12px; border: 1px solid #dedee4; }
+    .picker-footer > label, .picker-footer > span { display: block; line-height: 22px; }
     .designer-picker label { color: #626269; font-size: 13px; margin: 0 0 8px; }
-    .picker-alpha { width: calc(100% - 56px); height: 24px; accent-color: #88888e; }
+    .picker-alpha { display: block; clear: both; width: 100%; height: 24px; margin-top: 12px; accent-color: #88888e; }
     .picker-footer-actions { display: flex; justify-content: flex-end; clear: both; padding-top: 12px; }
     .picker-footer-actions button { background: #fff; height: 36px; padding: 0 18px; border-radius: 6px; margin-left: 10px; }
     .picker-rgb-row { display: flex !important; flex-wrap: wrap; align-items: center; padding: 8px 0; }
@@ -735,9 +749,6 @@
     .picker-number, .picker-hex { background: #fff; border: 1px solid #e4e4e8; border-radius: 6px; width: 68px; height: 36px; text-align: center; font-size: 16px; }
     .picker-hex-row { display: flex !important; align-items: center; justify-content: space-between; padding-top: 18px; }
     .picker-hex { width: 100px; }
-    .picker-saved { display: flex; flex-wrap: wrap; clear: both; padding-top: 10px; }
-    .picker-add, .picker-saved-color { width: 28px; height: 28px; border-radius: 50%; margin-right: 8px; margin-top: 6px; border: 1px solid #d9d9df; }
-    .picker-add { font-size: 22px; background: #e5e5e9; }
     .picker-rgb-row input[type=range]::-webkit-slider-runnable-track { background: var(--channel-bg); height: 16px; border-radius: 8px; }
     .picker-rgb-row input[type=range]::-webkit-slider-thumb { margin-top: -2px; width: 20px; height: 20px; }
   </style>
@@ -753,7 +764,7 @@
   <div id="colorPopover" class="color-popover" aria-label="颜色选择器"></div>
   <div id="toast" class="toast"></div>
 
-  <script src="./designer-color-picker.js?v=20261014-3"></script>
+  <script src="./designer-color-picker.js?v=20261019-4"></script>
   <script src="./sticker-catalog.js?v=20261019-2"></script>
   <script src="./minitool-export.js?v=20261019-1"></script>
   <script>
@@ -1609,8 +1620,28 @@
           tile.onclick = () => stickerInput.click();
         } else if (cell) {
           tile.setAttribute("aria-label", cell.split("/").pop().replace(/\.(png|webp)$/, ""));
-          tile.innerHTML = `<img class="sticker-img" src="${cell}" alt="">`;
+          const image = document.createElement("img");
+          image.className = "sticker-img";
+          image.alt = "";
+          image.loading = i < 20 ? "eager" : "lazy";
+          image.decoding = "async";
+          image.setAttribute("fetchpriority", i < 20 ? "high" : "low");
+          tile.setAttribute("aria-busy", "true");
+          image.onload = () => tile.removeAttribute("aria-busy");
+          image.onerror = () => {
+            tile.removeAttribute("aria-busy");
+            tile.setAttribute("aria-label", "贴纸加载失败，点击重试");
+          };
+          image.src = cell;
+          tile.appendChild(image);
+          if (image.complete && image.naturalWidth) tile.removeAttribute("aria-busy");
           tile.onclick = () => {
+            if (!image.naturalWidth) {
+              tile.setAttribute("aria-busy", "true");
+              image.loading = "eager";
+              image.src = cell;
+              return;
+            }
             commitChange(() => {
               state.activeStickerSrc = cell;
               addSticker(cell);
@@ -2476,6 +2507,11 @@
       window.visualViewport.addEventListener("resize", fit);
       window.visualViewport.addEventListener("scroll", fit);
     }
+    STICKER_ASSETS["推荐"].slice(0, 19).forEach(src => {
+      const image = new Image();
+      image.setAttribute("fetchpriority", "high");
+      image.src = src;
+    });
     render();
     fit();
     if (document.fonts && document.fonts.ready) document.fonts.ready.then(() => { renderArtworkOnly(); fit(); });
