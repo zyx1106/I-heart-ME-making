@@ -1297,7 +1297,7 @@
         if (!session) {
           const hit = event.target.closest("[data-sticker-id]");
           if (hit) state.activeStickerId = Number(hit.dataset.stickerId);
-          session = { id: state.activeStickerId, move: !!hit, pinched: false, changed: false, before: snapshotState() };
+          session = { id: state.activeStickerId, move: !!hit, dragging: false, pinched: false, changed: false, before: snapshotState() };
         }
         pointers.set(event.pointerId, { x: event.clientX, y: event.clientY });
         if (scene.setPointerCapture) scene.setPointerCapture(event.pointerId);
@@ -1313,7 +1313,8 @@
         if (pointers.size > 1) {
           sticker.scale = Math.max(0.02, start.scale * distance() / Math.max(1, start.distance));
           session.changed = true;
-        } else if (session.move && !session.pinched) {
+        } else if (!session.pinched && (session.move || session.dragging || Math.hypot(event.clientX - start.x, event.clientY - start.y) >= 6)) {
+          session.dragging = true;
           const screenScale = scene.getBoundingClientRect().width / 390;
           sticker.gx = start.gx + (event.clientX - start.x) / screenScale / metrics.w;
           sticker.gy = start.gy + (event.clientY - start.y) / screenScale / metrics.w;
@@ -1325,7 +1326,7 @@
         if (!pointers.has(event.pointerId)) return;
         pointers.delete(event.pointerId);
         if (pointers.size) { reset(); return; }
-        if (event.type !== "pointercancel" && !session.move && !session.pinched) state.activeStickerId = null;
+        if (event.type !== "pointercancel" && !session.move && !session.dragging && !session.pinched) state.activeStickerId = null;
         if (session.changed && session.before !== snapshotState()) {
           history.past.push(session.before);
           history.future = [];
