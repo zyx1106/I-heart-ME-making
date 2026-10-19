@@ -1,4 +1,3 @@
-const designerSavedColors = [];
 function createDesignerColorPicker(root, options) {
   root.innerHTML = '';
   root.classList.add('show', 'designer-picker');
@@ -12,13 +11,6 @@ function createDesignerColorPicker(root, options) {
     if (text) el.textContent = text;
     return el;
   };
-  const header = make('div', 'picker-header');
-  header.appendChild(make('strong', '', '颜色'));
-  const close = make('button', 'picker-close', '×');
-  close.setAttribute('aria-label', '关闭颜色选择器');
-  close.onclick = options.done;
-  header.appendChild(close);
-  root.appendChild(header);
   const tabs = make('div', 'picker-tabs');
   const content = make('div', 'picker-content');
   const footer = make('div', 'picker-footer');
@@ -45,17 +37,6 @@ function createDesignerColorPicker(root, options) {
   };
   opacity.oninput = () => { alpha = Number(opacity.value); opacityValue.textContent = alpha + '%'; notify(current); };
   footer.appendChild(sample); footer.appendChild(alphaLabel); footer.appendChild(opacityValue); footer.appendChild(opacity); footer.appendChild(actions);
-  const saved = make('div', 'picker-saved');
-  const drawSaved = () => {
-    saved.innerHTML = '';
-    designerSavedColors.forEach(value => {
-      const swatch = make('button', 'picker-saved-color'); swatch.style.background = value; swatch.setAttribute('aria-label', '收藏颜色 ' + value); swatch.onclick = () => { notify(value); render(); }; saved.appendChild(swatch);
-    });
-    const add = make('button', 'picker-add', '+'); add.setAttribute('aria-label', '收藏当前颜色');
-    add.onclick = () => { if (!designerSavedColors.includes(current)) designerSavedColors.push(current); drawSaved(); };
-    saved.appendChild(add);
-  };
-  footer.insertBefore(saved, actions); drawSaved();
   [['grid', '网格'], ['spectrum', '光谱'], ['sliders', '滑块']].forEach(item => {
     const button = make('button', '', item[1]);
     button.dataset.view = item[0];

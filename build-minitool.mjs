@@ -8,7 +8,7 @@ let html = fs.readFileSync('figma-doing-interactive.html', 'utf8');
 let js = fs.readFileSync('sticker-catalog.js', 'utf8') + '\n' + html.match(/<script>([\s\S]*?)<\/script>/)[1];
 html = html.replace(/  <script src="\.\/sticker-catalog\.js[^\"]*"><\/script>\n/, '');
 html = html.replace(/<script>[\s\S]*?<\/script>/, '<script src="./app.js"></script>');
-html = html.replace('./designer-color-picker.js?v=20261014-3', './designer-color-picker.js');
+html = html.replace(/\.\/designer-color-picker\.js\?v=[^"\s]+/, './designer-color-picker.js');
 html = html.replace('素材包/英文字体-Corben/CooperBlackStd-3.otf', './assets/cooper.woff').replace('format("opentype")', 'format("woff")');
 js = js.replace(/    async function exportDesignCanvas\(\)[\s\S]*?    function toast\(/, '    async function exportDesignCanvas() { return exportNativeDesignCanvas(); }\n    function toast(');
 html = html.replace('./minitool-export.js?v=20261019-1', './minitool-export.js');
