@@ -793,6 +793,17 @@
           { key: "canvas", id: "7663:3786", label: "画布", x: 321, y: 462, w: 30, h: 21 }
         ]
       },
+      textColors: [
+        { key: "rainbow", bg: "linear-gradient(90deg,#ff3f6c 0%,#ffcf35 18%,#5edf68 36%,#38dded 55%,#5f6bf7 73%,#ed47dc 100%)" },
+        { key: "#ff0000", bg: "#ff0000" },
+        { key: "#000000", bg: "#000", bd: "1px solid #e7e7eb" },
+        { key: "#ffffff", bg: "#fff", bd: "1px solid #d5d5d5" },
+        { key: "#ff1688", bg: "#ff1688" },
+        { key: "#fee240", bg: "#fee240" },
+        { key: "#8df2ee", bg: "#8df2ee" },
+        { key: "#2dfef8", bg: "#2dfef8" },
+        { key: "#a0fe2b", bg: "#a0fe2b" }
+      ],
       colors: [
         { key: "rainbow", bg: "conic-gradient(#ff1687,#fff84b,#5bd8b9,#67d8e9,#b586ee,#ff1687)" },
         { key: "#ff1b12", bg: "#ff1b12" },
@@ -1753,14 +1764,17 @@
     }
 
     function renderSwatches(x0, y, mode, gap = 40) {
-      FIGMA.colors.forEach((c, i) => {
+      const colors = mode === "text" ? FIGMA.textColors : FIGMA.colors;
+      colors.forEach((c, i) => {
         const b = document.createElement("button");
         setPos(b, { x: x0 + i * gap, y, w: 22, h: 22, id: `${mode}-color-${i}` });
         b.className = "abs swatch";
+        b.setAttribute("aria-label", c.key === "rainbow" ? "自定义颜色" : c.key);
         b.style.setProperty("--bg", c.bg);
         b.style.setProperty("--bd", c.bd || "0");
         const active = (mode === "text" && state.textColor === c.key) || (mode === "symbol" && state.symbolColor === c.key) || (mode === "bg" && state.bgColor === c.key);
         b.classList.toggle("active", active);
+        b.setAttribute("aria-pressed", String(active));
         b.onclick = () => {
           if (c.key === "rainbow") {
             openColorPicker(mode);
