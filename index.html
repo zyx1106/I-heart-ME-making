@@ -697,13 +697,23 @@
       background: #ebebef;
       padding: 2px;
       display: grid;
-      grid-template-columns: repeat(5, 1fr);
+      grid-auto-flow: column;
+      grid-auto-columns: 20%;
+      overflow-x: auto;
+      overflow-y: hidden;
+      overscroll-behavior-x: contain;
+      touch-action: pan-x;
+      -webkit-overflow-scrolling: touch;
+      scrollbar-width: none;
     }
+
+    .segmented::-webkit-scrollbar { display: none; }
 
     .segmented button {
       border-radius: 16px;
       font-size: 13px;
       color: #96969b;
+      white-space: nowrap;
     }
     .segmented button.active { background: #fff; color: #161618; }
 
@@ -789,7 +799,7 @@
   <div id="toast" class="toast"></div>
 
   <script src="./designer-color-picker.js?v=20261019-15"></script>
-  <script src="./sticker-catalog.js?v=20261019-2"></script>
+  <script src="./sticker-catalog.js?v=20261022-1"></script>
   <script src="./minitool-export.js?v=20261019-12"></script>
   <script>
     const FIGMA = {
@@ -971,6 +981,8 @@
     function render() {
       const oldScroll = frame.querySelector(".editor-scroll");
       const scrollTop = oldScroll && oldScroll.dataset.tab === state.active ? oldScroll.scrollTop : 0;
+      const oldCategories = frame.querySelector(".segmented");
+      const categoryScrollLeft = oldCategories ? oldCategories.scrollLeft : 0;
       frame.innerHTML = "";
       const frameHeight = frameHeightForState();
       frame.style.height = `${frameHeight}px`;
@@ -1017,6 +1029,11 @@
       }
       fit();
       scroll.scrollTop = scrollTop;
+      const categories = frame.querySelector(".segmented");
+      if (categories) {
+        categories.scrollLeft = categoryScrollLeft;
+        revealStickerCategory(categories, categories.querySelector("button.active"));
+      }
       renderModal();
       renderColorPicker();
     }
@@ -1582,7 +1599,7 @@
         composing = false;
         const before = compositionBefore || snapshotState();
         const cleaned = cleanMainText(raw);
-        if (cleaned !== raw) toast(/[\u3400-\u9fff\uf900-\ufaff]/.test(raw) ? "无法输入中文" : "仅支持英文字母、数字和标点符号");
+        if (cleaned !== raw) toast(/[\u3400-\u9fff\uf900-\ufaff]/.test(raw) ? "无法输入中文" : Array.from(raw).length > 10 ? "最多输入10个字符" : "仅支持英文字母、数字和标点符号");
         state.text = cleaned;
         if (input.value !== cleaned) input.value = cleaned;
         if (before !== snapshotState()) {
@@ -1606,7 +1623,7 @@
     }
 
     function cleanMainText(value) {
-      return Array.from(value).filter(char => /[A-Za-z0-9\x20-\x2f\x3a-\x40\x5b-\x60\x7b-\x7e，。！？；：、（）【】《》〈〉「」『』‘’“”…—·]/.test(char)).slice(0, 7).join("");
+      return Array.from(value).filter(char => /[A-Za-z0-9\x20-\x2f\x3a-\x40\x5b-\x60\x7b-\x7e，。！？；：、（）【】《》〈〉「」『』‘’“”…—·]/.test(char)).slice(0, 10).join("");
     }
 
     function renderTypographySlider(label, key, min, max, y) {
@@ -1679,10 +1696,14 @@
       const seg = document.createElement("div");
       seg.className = "abs segmented";
       seg.dataset.nodeId = "7663:3993";
+      seg.setAttribute("role", "group");
+      seg.setAttribute("aria-label", "贴纸分类");
       STICKER_CATEGORIES.forEach(label => {
         const b = document.createElement("button");
         b.textContent = label;
         if (label === state.stickerCategory) b.className = "active";
+        b.setAttribute("aria-pressed", String(label === state.stickerCategory));
+        b.onfocus = () => revealStickerCategory(seg, b);
         b.onclick = () => {
           state.stickerCategory = label;
           render();
@@ -1758,6 +1779,14 @@
         toast("先选中一张贴纸");
       };
       frame.appendChild(del);
+    }
+
+    function revealStickerCategory(seg, button) {
+      if (!button) return;
+      const left = button.offsetLeft;
+      const right = left + button.offsetWidth;
+      if (left < seg.scrollLeft) seg.scrollLeft = left;
+      else if (right > seg.scrollLeft + seg.clientWidth) seg.scrollLeft = right - seg.clientWidth;
     }
 
     function addSticker(src) {
