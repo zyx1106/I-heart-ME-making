@@ -20,19 +20,22 @@ for item in assets:
     target = root / 'stickers' / item['folder'] / pathlib.Path(item['name']).with_suffix('.webp')
     target.parent.mkdir(parents=True, exist_ok=True)
     expected.add(target)
-    with Image.open(source) as image:
-        image = image.convert('RGBA')
-        bounds = image.getchannel('A').getbbox()
-        if bounds:
-            image = image.crop(bounds)
-        image.thumbnail((320, 320), Image.Resampling.LANCZOS)
-        image.save(target, quality=85, method=6)
-        browser_target = pathlib.Path('assets') / target.relative_to(root)
-        browser_target.parent.mkdir(parents=True, exist_ok=True)
-        shutil.copyfile(target, browser_target)
-        old = target.with_suffix('.png')
-        if old.exists():
-            old.unlink()
+    browser_target = pathlib.Path('assets') / target.relative_to(root)
+    if browser_target.exists() and (not source.exists() or browser_target.stat().st_mtime >= source.stat().st_mtime):
+        shutil.copyfile(browser_target, target)
+    else:
+        with Image.open(source) as image:
+            image = image.convert('RGBA')
+            bounds = image.getchannel('A').getbbox()
+            if bounds:
+                image = image.crop(bounds)
+            image.thumbnail((320, 320), Image.Resampling.LANCZOS)
+            image.save(target, quality=85, method=6)
+            browser_target.parent.mkdir(parents=True, exist_ok=True)
+            shutil.copyfile(target, browser_target)
+    old = target.with_suffix('.png')
+    if old.exists():
+        old.unlink()
 for stale in (root / 'stickers').rglob('*'):
     if stale.is_file() and stale not in expected:
         stale.unlink()

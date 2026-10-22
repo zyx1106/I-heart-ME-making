@@ -22,7 +22,7 @@ const context = {
 };
 vm.createContext(context);
 for (const name of ['canvasMetrics', 'artworkLayout', 'stickerAnchor']) vm.runInContext(functionSource(name), context);
-for (const text of ['ME', 'WWWWWWW', 'hello', '独居青年']) {
+for (const text of ['ME', 'WWWWWWW', 'WWWWWWWW', 'WWWWWWWWWW', 'ABCDEFGHIJ', 'Happy2026!', 'hello', '独居青年']) {
   for (const size of [50, 100, 180]) {
     context.state.text = text; context.state.textSize = size; context.state.textSpacing = 0;
     context.state.ratio = '1:1';
@@ -40,6 +40,7 @@ for (const text of ['ME', 'WWWWWWW', 'hello', '独居青年']) {
       assert.ok(Math.abs(layout.i.fs / spaced.i.fs - scale) < 1e-10);
       assert.ok(Math.abs((layout.me.y - layout.i.y) / (spaced.me.y - spaced.i.y) - scale) < 1e-10);
       assert.ok(layout.me.x >= metrics.x && layout.me.x + layout.me.w - layout.me.spacing <= metrics.x + metrics.w);
+      assert.ok(Math.abs(layout.me.x + (layout.me.w - layout.me.spacing) / 2 - metrics.x - metrics.w / 2) < 1e-8, 'Center long names and all spacing values');
       assert.ok(layout.me.y > layout.symbol.y + layout.symbol.h, 'Keep a visible vertical gap');
     }
   }
@@ -123,7 +124,10 @@ vm.runInContext(functionSource('cleanMainText'), context);
 assert.equal(context.cleanMainText('Abc!?'), 'Abc!?');
 assert.equal(context.cleanMainText('a中文12😀B!'), 'a12B!');
 assert.equal(context.cleanMainText('I2026!?'), 'I2026!?');
-assert.equal(context.cleanMainText('abcdefgh'), 'abcdefg');
+assert.equal(context.cleanMainText('abcdefgh'), 'abcdefgh');
+assert.equal(context.cleanMainText('abcdefghij'), 'abcdefghij');
+assert.equal(context.cleanMainText('abcdefghijk'), 'abcdefghij');
+assert.equal(context.cleanMainText('Happy2026!'), 'Happy2026!');
 let field;
 const messages = [];
 context.document.createElement = () => ({ setAttribute() {} });
@@ -169,5 +173,12 @@ field.onblur({ target: field, isComposing: true });
 assert.equal(context.state.text, 'English', 'Blur must finalize an IME session with no end event');
 field.value = 'Abcdefghijkl';
 field.oninput({ target: field, isComposing: false });
-assert.equal(context.state.text, 'Abcdefg', 'Apply the seven-character limit after composition, not via native maxlength');
+assert.equal(context.state.text, 'Abcdefghij', 'Apply the ten-character limit after composition, not via native maxlength');
+assert.equal(messages.pop(), '最多输入10个字符');
+field.oncompositionstart();
+field.value = 'ABCDEFGHIJ';
+field.oninput({ target: field, isComposing: true });
+assert.equal(context.state.text, 'ABCDEFGHIJ', 'Chinese IMEs must still preview ten Latin characters');
+field.oncompositionend({ target: field });
+assert.equal(context.state.text, 'ABCDEFGHIJ');
 console.log('PASS: editor contracts, photo gestures, publishing, scroll restoration and bounded non-overlapping sticker handles');

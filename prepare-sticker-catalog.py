@@ -6,12 +6,28 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parent
 SOURCE = ROOT / '素材包/图片素材/贴纸素材'
 CATEGORIES = [('推荐', '推荐', 'RECOMMENDED'), ('Y2K', 'y2k', 'Y2K'),
+              ('生日', '生日', 'BIRTHDAY'),
               ('韩系', '韩系', 'KOREAN'), ('ins风', 'ins', 'INS'), ('像素风', '像素风', 'PIXEL')]
 EXCLUDED = {
     '049-S07-JPEG眼睛文件.png', '011-S01-蓝色动漫眼睛左.png',
     '012-S01-蓝色动漫眼睛右.png', '058-S08-时尚杂志拼贴.png',
 }
+PINNED = {
+    '推荐': ['029-S01-草莓蛋糕爆炸框组合.png', '016-S01-粉色星星生日帽.png',
+           '030-S01-彩色生日刺绣字贴.png', '019-S01-生日彩带徽章.png'],
+    '韩系': ['029-S01-草莓蛋糕爆炸框组合.png'],
+    '生日': ['016-S01-粉色星星生日帽.png', '031-S02-小猫粉色生日帽.png',
+           '002-S01-彩色波点生日帽.png', '003-S01-黄色生日帽.png', '010-S01-派对帽小虫.png'],
+}
 RULES = {
+    '生日': [
+        ('生日帽', r'生日帽|派对帽'),
+        ('粉色蛋糕', r'粉色.*(蛋糕|纸杯)'), ('其他蛋糕', r'蛋糕|纸杯|水果挞'),
+        ('气球', r'气球'), ('蜡烛', r'蜡烛'),
+        ('字贴', r'字贴|椭圆牌|消息气泡|祝福'),
+        ('徽章绶带', r'徽章|绶带'), ('蝴蝶结旗帜', r'蝴蝶结|三角旗'),
+        ('粉色装饰', r'粉|粉红'), ('彩色装饰', r'.'),
+    ],
     'Y2K': [
         ('彩色胡子', r'^(02-粉色薄荷波点胡子|05-红色波点胡子|09-粉色闪粉胡子|14-薄荷粉边波点胡子)'),
         ('黑色胡子', r'胡子'), ('眼睛', r'娃娃眼睛|动漫眼睛|眼珠|JPEG眼睛'),
@@ -53,12 +69,17 @@ RULES = {
 
 
 def sections(label, folder):
-    remaining = sorted((p.name for p in (SOURCE / folder).glob('*.png') if p.name not in EXCLUDED),
+    names = {p.name for p in (SOURCE / folder).glob('*.png')}
+    # Published WebPs remain usable when their large source PNGs were removed.
+    names.update(p.with_suffix('.png').name for p in (ROOT / 'assets/stickers' / folder).glob('*.webp'))
+    remaining = sorted((name for name in names if name not in EXCLUDED),
                        key=lambda name: (re.sub(r'^\d+-(?:S\d+-)?', '', name), name))
+    pinned = [name for name in PINNED.get(label, []) if name in remaining]
+    remaining = [name for name in remaining if name not in pinned]
     last_pattern = r'娃娃眼睛' if label == 'Y2K' else r'花|莲|百合|兰' if label == '推荐' else None
     last = [name for name in remaining if last_pattern and re.search(last_pattern, name)]
     remaining = [name for name in remaining if name not in last]
-    result = []
+    result = [('优先展示', pinned)] if pinned else []
     for family, pattern in RULES[label]:
         selected = [name for name in remaining if re.search(pattern, name)]
         if selected:
@@ -94,7 +115,10 @@ def contact_sheets():
         sheet = Image.new('RGB', (800, ((len(names) + 7) // 8) * 100), '#e9e9ee')
         draw = ImageDraw.Draw(sheet)
         for index, name in enumerate(names):
-            with Image.open(SOURCE / folder / name) as image:
+            source = SOURCE / folder / name
+            if not source.exists():
+                source = ROOT / 'assets/stickers' / folder / Path(name).with_suffix('.webp')
+            with Image.open(source) as image:
                 image = image.convert('RGBA')
                 bounds = image.getchannel('A').getbbox()
                 if bounds:
